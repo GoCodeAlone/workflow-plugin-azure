@@ -1,0 +1,36 @@
+version: 2
+
+before:
+  hooks:
+    - "cp plugin.json plugin.json.orig"
+    - "sed -i.bak 's/\"version\": \".*\"/\"version\": \"{{ .Version }}\"/' plugin.json && rm -f plugin.json.bak"
+
+after:
+  hooks:
+    - "mv plugin.json.orig plugin.json"
+
+builds:
+  - main: ./cmd/workflow-plugin-azure
+    binary: "{{ .ProjectName }}"
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w -X main.version={{.Version}}
+
+archives:
+  - formats: [tar.gz]
+    name_template: "{{ .ProjectName }}-{{ .Os }}-{{ .Arch }}"
+    files:
+      - plugin.json
+
+checksum:
+  name_template: checksums.txt
+
+changelog:
+  sort: asc
