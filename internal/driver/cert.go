@@ -138,11 +138,3 @@ func certToOutput(name string, cert armappservice.AppCertificate) *interfaces.Re
 	}
 }
 
-func toStrPtrs(ss []string) []*string {
-	out := make([]*string, len(ss))
-	for i := range ss {
-		s := ss[i]
-		out[i] = &s
-	}
-	return out
-}

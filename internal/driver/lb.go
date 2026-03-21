@@ -108,7 +108,13 @@ func (d *LBDriver) Diff(_ context.Context, desired interfaces.ResourceSpec, curr
 	if current == nil {
 		return &interfaces.DiffResult{NeedsUpdate: true}, nil
 	}
-	return &interfaces.DiffResult{NeedsUpdate: false}, nil
+	var changes []interfaces.FieldChange
+	if scheme, ok := desired.Config["scheme"].(string); ok {
+		if cur, ok := current.Outputs["scheme"].(string); ok && scheme != cur {
+			changes = append(changes, interfaces.FieldChange{Path: "scheme", Old: cur, New: scheme, ForceNew: true})
+		}
+	}
+	return &interfaces.DiffResult{NeedsUpdate: len(changes) > 0, NeedsReplace: len(changes) > 0, Changes: changes}, nil
 }
 
 func (d *LBDriver) HealthCheck(ctx context.Context, ref interfaces.ResourceRef) (*interfaces.HealthResult, error) {

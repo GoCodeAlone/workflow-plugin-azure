@@ -112,7 +112,13 @@ func (d *NSGDriver) Diff(_ context.Context, desired interfaces.ResourceSpec, cur
 	if current == nil {
 		return &interfaces.DiffResult{NeedsUpdate: true}, nil
 	}
-	return &interfaces.DiffResult{NeedsUpdate: false}, nil
+	var changes []interfaces.FieldChange
+	if rules, ok := desired.Config["rules"]; ok {
+		if cur, ok := current.Outputs["rules"]; ok && fmt.Sprintf("%v", rules) != fmt.Sprintf("%v", cur) {
+			changes = append(changes, interfaces.FieldChange{Path: "rules", Old: cur, New: rules})
+		}
+	}
+	return &interfaces.DiffResult{NeedsUpdate: len(changes) > 0, Changes: changes}, nil
 }
 
 func (d *NSGDriver) HealthCheck(ctx context.Context, ref interfaces.ResourceRef) (*interfaces.HealthResult, error) {

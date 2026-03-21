@@ -88,8 +88,8 @@ func NewSQLDriver(resourceGroup, location string, client SQLClient) *SQLDriver {
 func (d *SQLDriver) Create(ctx context.Context, spec interfaces.ResourceSpec) (*interfaces.ResourceOutput, error) {
 	adminUser := configStr(spec.Config, "admin_username", "sqladmin")
 	adminPass := configStr(spec.Config, "admin_password", "P@ssw0rd1234!")
-	edition := configStr(spec.Config, "edition", "Standard")
-	sku := configStr(spec.Config, "sku", "S1")
+	// Default to GP_Gen5_2 (General Purpose vCore model).
+	skuName := configStr(spec.Config, "sku_name", "GP_Gen5_2")
 
 	srv := armsql.Server{
 		Location: str(d.location),
@@ -107,7 +107,7 @@ func (d *SQLDriver) Create(ctx context.Context, spec interfaces.ResourceSpec) (*
 	dbName := configStr(spec.Config, "database_name", "defaultdb")
 	db := armsql.Database{
 		Location: str(d.location),
-		SKU:      &armsql.SKU{Name: str(sku), Tier: str(edition)},
+		SKU:      &armsql.SKU{Name: str(skuName)},
 	}
 	dbResult, err := d.client.CreateOrUpdateDB(ctx, d.resourceGroup, spec.Name, dbName, db)
 	if err != nil {

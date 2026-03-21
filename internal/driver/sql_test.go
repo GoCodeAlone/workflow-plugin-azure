@@ -46,7 +46,7 @@ func TestSQLDriver_Create(t *testing.T) {
 			return armsql.Server{
 				ID: str("/subscriptions/sub/rg/sql/" + name),
 				Properties: &armsql.ServerProperties{
-					State:                   &state,
+					State:                    &state,
 					FullyQualifiedDomainName: &fqdn,
 				},
 			}, nil
@@ -63,7 +63,7 @@ func TestSQLDriver_Create(t *testing.T) {
 	out, err := drv.Create(context.Background(), interfaces.ResourceSpec{
 		Name:   "test-sql",
 		Type:   "infra.database",
-		Config: map[string]any{"sku": skuName, "database_name": "mydb"},
+		Config: map[string]any{"sku_name": skuName, "database_name": "mydb"},
 	})
 	if err != nil {
 		t.Fatalf("Create: %v", err)

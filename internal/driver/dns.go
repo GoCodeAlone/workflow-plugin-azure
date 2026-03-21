@@ -97,7 +97,13 @@ func (d *DNSDriver) Diff(_ context.Context, desired interfaces.ResourceSpec, cur
 	if current == nil {
 		return &interfaces.DiffResult{NeedsUpdate: true}, nil
 	}
-	return &interfaces.DiffResult{NeedsUpdate: false}, nil
+	var changes []interfaces.FieldChange
+	if zoneType, ok := desired.Config["zone_type"].(string); ok {
+		if cur, ok := current.Outputs["zone_type"].(string); ok && zoneType != cur {
+			changes = append(changes, interfaces.FieldChange{Path: "zone_type", Old: cur, New: zoneType, ForceNew: true})
+		}
+	}
+	return &interfaces.DiffResult{NeedsUpdate: len(changes) > 0, NeedsReplace: len(changes) > 0, Changes: changes}, nil
 }
 
 func (d *DNSDriver) HealthCheck(ctx context.Context, ref interfaces.ResourceRef) (*interfaces.HealthResult, error) {

@@ -127,11 +127,11 @@ func TestAzureProvider_ResolveSizing_Database(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if sizing.Specs["edition"] != "Standard" {
-		t.Errorf("edition = %v, want Standard", sizing.Specs["edition"])
+	if sizing.Specs["sku_name"] != "GP_Gen5_1" {
+		t.Errorf("sku_name = %v, want GP_Gen5_1", sizing.Specs["sku_name"])
 	}
-	if sizing.Specs["dtu"] != 20 {
-		t.Errorf("dtu = %v, want 20", sizing.Specs["dtu"])
+	if sizing.Specs["vcores"] != 1 {
+		t.Errorf("vcores = %v, want 1", sizing.Specs["vcores"])
 	}
 }
 

@@ -52,7 +52,7 @@ func (p *AzureProvider) Name() string { return "azure" }
 func (p *AzureProvider) Version() string { return p.version }
 
 // Initialize configures the Azure provider from the given config map.
-// Expected keys: subscription_id, resource_group, location.
+// Expected keys: subscription_id, resource_group, location, storage_account (optional).
 // Credentials are resolved via azidentity.NewDefaultAzureCredential.
 func (p *AzureProvider) Initialize(ctx context.Context, config map[string]any) error {
 	p.mu.Lock()
@@ -70,6 +70,7 @@ func (p *AzureProvider) Initialize(ctx context.Context, config map[string]any) e
 	if loc == "" {
 		loc = "eastus"
 	}
+	storageAccount, _ := config["storage_account"].(string)
 
 	p.subscriptionID = subID
 	p.resourceGroup = rg
@@ -80,7 +81,7 @@ func (p *AzureProvider) Initialize(ctx context.Context, config map[string]any) e
 		return fmt.Errorf("azure: credential: %w", err)
 	}
 
-	drivers, err := driver.NewAll(subID, rg, loc, cred)
+	drivers, err := driver.NewAll(subID, rg, loc, storageAccount, cred)
 	if err != nil {
 		return fmt.Errorf("azure: init drivers: %w", err)
 	}
@@ -316,12 +317,8 @@ func (p *AzureProvider) ResolveSizing(resourceType string, size interfaces.Size,
 	switch resourceType {
 	case "infra.database":
 		tier := dbSizing[size]
-		specs["edition"] = tier.edition
-		specs["service_tier"] = tier.serviceTier
-		specs["dtu"] = tier.dtu
-		if tier.vCores > 0 {
-			specs["vcores"] = tier.vCores
-		}
+		specs["sku_name"] = tier.skuName
+		specs["vcores"] = tier.vCores
 	case "infra.cache":
 		specs["sku_name"] = cacheSizing[size]
 		delete(specs, "instance_type")

@@ -13,20 +13,18 @@ var azureSizing = map[interfaces.Size]string{
 	interfaces.SizeXL: "Standard_D8s_v5",
 }
 
-// dbSizing maps abstract size tiers to Azure SQL DTU tiers.
+// dbSizing maps abstract size tiers to Azure SQL Database vCore SKUs (General Purpose, Gen5).
 var dbSizing = map[interfaces.Size]dbTier{
-	interfaces.SizeXS: {edition: "Basic", serviceTier: "B", dtu: 5, vCores: 0},
-	interfaces.SizeS:  {edition: "Standard", serviceTier: "S1", dtu: 20, vCores: 0},
-	interfaces.SizeM:  {edition: "Standard", serviceTier: "S3", dtu: 100, vCores: 0},
-	interfaces.SizeL:  {edition: "Premium", serviceTier: "P1", dtu: 125, vCores: 4},
-	interfaces.SizeXL: {edition: "Premium", serviceTier: "P2", dtu: 250, vCores: 8},
+	interfaces.SizeXS: {skuName: "GP_Gen5_1", vCores: 1},
+	interfaces.SizeS:  {skuName: "GP_Gen5_1", vCores: 1},
+	interfaces.SizeM:  {skuName: "GP_Gen5_2", vCores: 2},
+	interfaces.SizeL:  {skuName: "GP_Gen5_4", vCores: 4},
+	interfaces.SizeXL: {skuName: "GP_Gen5_8", vCores: 8},
 }
 
 type dbTier struct {
-	edition     string
-	serviceTier string
-	dtu         int
-	vCores      int
+	skuName string
+	vCores  int
 }
 
 // cacheSizing maps abstract size tiers to Azure Cache for Redis SKUs.

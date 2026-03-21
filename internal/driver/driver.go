@@ -22,7 +22,9 @@ import (
 )
 
 // NewAll creates all Azure resource drivers and returns them keyed by resource type.
-func NewAll(subscriptionID, resourceGroup, location string, cred azcore.TokenCredential) (map[string]interfaces.ResourceDriver, error) {
+// storageAccount is the Azure Storage account name used for blob operations
+// (e.g. "mystorageaccount"). If empty, the blob driver is omitted.
+func NewAll(subscriptionID, resourceGroup, location, storageAccount string, cred azcore.TokenCredential) (map[string]interfaces.ResourceDriver, error) {
 	aciRaw, err := armcontainerinstance.NewContainerGroupsClient(subscriptionID, cred, nil)
 	if err != nil {
 		return nil, fmt.Errorf("aci client: %w", err)
@@ -82,10 +84,8 @@ func NewAll(subscriptionID, resourceGroup, location string, cred azcore.TokenCre
 		return nil, fmt.Errorf("msi client: %w", err)
 	}
 
-	blobRaw, err := azblob.NewClient(
-		fmt.Sprintf("https://placeholder.blob.core.windows.net/"),
-		cred, nil,
-	)
+	blobServiceURL := fmt.Sprintf("https://%s.blob.core.windows.net/", storageAccount)
+	blobRaw, err := azblob.NewClient(blobServiceURL, cred, nil)
 	if err != nil {
 		return nil, fmt.Errorf("blob client: %w", err)
 	}
