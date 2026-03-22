@@ -90,8 +90,8 @@ func (p *AzureProvider) Initialize(ctx context.Context, config map[string]any) e
 }
 
 // Capabilities returns the resource types this provider supports.
-func (p *AzureProvider) Capabilities() []interfaces.CapabilityDeclaration {
-	return []interfaces.CapabilityDeclaration{
+func (p *AzureProvider) Capabilities() []interfaces.IaCCapabilityDeclaration {
+	return []interfaces.IaCCapabilityDeclaration{
 		{ResourceType: "infra.container_service", Tier: 1, Operations: []string{"create", "read", "update", "delete", "scale"}},
 		{ResourceType: "infra.k8s_cluster", Tier: 1, Operations: []string{"create", "read", "update", "delete", "scale"}},
 		{ResourceType: "infra.database", Tier: 1, Operations: []string{"create", "read", "update", "delete"}},
@@ -109,7 +109,7 @@ func (p *AzureProvider) Capabilities() []interfaces.CapabilityDeclaration {
 }
 
 // Plan compares desired state with current state and produces an execution plan.
-func (p *AzureProvider) Plan(_ context.Context, desired []interfaces.ResourceSpec, current []interfaces.ResourceState) (*interfaces.Plan, error) {
+func (p *AzureProvider) Plan(_ context.Context, desired []interfaces.ResourceSpec, current []interfaces.ResourceState) (*interfaces.IaCPlan, error) {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 
@@ -135,7 +135,7 @@ func (p *AzureProvider) Plan(_ context.Context, desired []interfaces.ResourceSpe
 		}
 	}
 
-	return &interfaces.Plan{
+	return &interfaces.IaCPlan{
 		ID:        fmt.Sprintf("plan-%d", time.Now().UnixNano()),
 		Actions:   actions,
 		CreatedAt: time.Now(),
@@ -143,7 +143,7 @@ func (p *AzureProvider) Plan(_ context.Context, desired []interfaces.ResourceSpe
 }
 
 // Apply executes the given plan by delegating to resource drivers.
-func (p *AzureProvider) Apply(ctx context.Context, plan *interfaces.Plan) (*interfaces.ApplyResult, error) {
+func (p *AzureProvider) Apply(ctx context.Context, plan *interfaces.IaCPlan) (*interfaces.ApplyResult, error) {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 
