@@ -54,6 +54,9 @@ type DNSDriver struct {
 
 var _ interfaces.ResourceDriver = (*DNSDriver)(nil)
 
+// SensitiveKeys returns output keys whose values should be masked in logs and plan output.
+func (d *DNSDriver) SensitiveKeys() []string { return nil }
+
 func NewDNSDriver(resourceGroup, location string, client DNSClient) *DNSDriver {
 	return &DNSDriver{resourceGroup: resourceGroup, location: location, client: client}
 }

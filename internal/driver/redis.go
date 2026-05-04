@@ -58,6 +58,9 @@ type RedisDriver struct {
 
 var _ interfaces.ResourceDriver = (*RedisDriver)(nil)
 
+// SensitiveKeys returns output keys whose values should be masked in logs and plan output.
+func (d *RedisDriver) SensitiveKeys() []string { return nil }
+
 func NewRedisDriver(resourceGroup, location string, client RedisClient) *RedisDriver {
 	return &RedisDriver{resourceGroup: resourceGroup, location: location, client: client}
 }

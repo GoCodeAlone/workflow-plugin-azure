@@ -58,6 +58,9 @@ type AKSDriver struct {
 
 var _ interfaces.ResourceDriver = (*AKSDriver)(nil)
 
+// SensitiveKeys returns output keys whose values should be masked in logs and plan output.
+func (d *AKSDriver) SensitiveKeys() []string { return nil }
+
 func NewAKSDriver(resourceGroup, location string, client AKSClient) *AKSDriver {
 	return &AKSDriver{resourceGroup: resourceGroup, location: location, client: client}
 }
