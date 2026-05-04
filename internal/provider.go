@@ -358,6 +358,22 @@ func (p *AzureProvider) resourceDriver(resourceType string) (interfaces.Resource
 	return drv, nil
 }
 
+// SupportedCanonicalKeys returns the full canonical IaC key set. Per the
+// interfaces.IaCProvider doc, "built-in and stub providers return the full
+// canonical key set"; this provider's drivers do not currently reject
+// unsupported keys at the provider level.
+func (p *AzureProvider) SupportedCanonicalKeys() []string {
+	return interfaces.CanonicalKeys()
+}
+
+// BootstrapStateBackend is a no-op for this provider; Azure Blob state
+// backends are managed via separate workflow paths rather than the provider
+// interface. Returns (nil, nil) per interfaces.IaCProvider's documented
+// contract for providers that do not manage state.
+func (p *AzureProvider) BootstrapStateBackend(_ context.Context, _ map[string]any) (*interfaces.BootstrapResult, error) {
+	return nil, nil
+}
+
 // Close releases provider resources.
 func (p *AzureProvider) Close() error {
 	p.mu.Lock()
