@@ -58,6 +58,9 @@ type APIMDriver struct {
 
 var _ interfaces.ResourceDriver = (*APIMDriver)(nil)
 
+// SensitiveKeys returns output keys whose values should be masked in logs and plan output.
+func (d *APIMDriver) SensitiveKeys() []string { return nil }
+
 func NewAPIMDriver(resourceGroup, location string, client APIMClient) *APIMDriver {
 	return &APIMDriver{resourceGroup: resourceGroup, location: location, client: client}
 }

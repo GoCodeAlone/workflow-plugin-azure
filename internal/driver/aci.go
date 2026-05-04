@@ -59,6 +59,9 @@ type ACIDriver struct {
 
 var _ interfaces.ResourceDriver = (*ACIDriver)(nil)
 
+// SensitiveKeys returns output keys whose values should be masked in logs and plan output.
+func (d *ACIDriver) SensitiveKeys() []string { return nil }
+
 // NewACIDriver creates an ACI driver with the given client.
 func NewACIDriver(resourceGroup, location string, client ACIClient) *ACIDriver {
 	return &ACIDriver{resourceGroup: resourceGroup, location: location, client: client}

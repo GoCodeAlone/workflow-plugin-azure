@@ -58,6 +58,9 @@ type NSGDriver struct {
 
 var _ interfaces.ResourceDriver = (*NSGDriver)(nil)
 
+// SensitiveKeys returns output keys whose values should be masked in logs and plan output.
+func (d *NSGDriver) SensitiveKeys() []string { return nil }
+
 func NewNSGDriver(resourceGroup, location string, client NSGClient) *NSGDriver {
 	return &NSGDriver{resourceGroup: resourceGroup, location: location, client: client}
 }

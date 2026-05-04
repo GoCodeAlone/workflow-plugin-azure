@@ -58,6 +58,9 @@ type VNetDriver struct {
 
 var _ interfaces.ResourceDriver = (*VNetDriver)(nil)
 
+// SensitiveKeys returns output keys whose values should be masked in logs and plan output.
+func (d *VNetDriver) SensitiveKeys() []string { return nil }
+
 func NewVNetDriver(resourceGroup, location string, client VNetClient) *VNetDriver {
 	return &VNetDriver{resourceGroup: resourceGroup, location: location, client: client}
 }

@@ -58,6 +58,9 @@ type LBDriver struct {
 
 var _ interfaces.ResourceDriver = (*LBDriver)(nil)
 
+// SensitiveKeys returns output keys whose values should be masked in logs and plan output.
+func (d *LBDriver) SensitiveKeys() []string { return nil }
+
 func NewLBDriver(resourceGroup, location string, client LBClient) *LBDriver {
 	return &LBDriver{resourceGroup: resourceGroup, location: location, client: client}
 }

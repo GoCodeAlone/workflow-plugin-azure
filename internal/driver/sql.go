@@ -81,6 +81,9 @@ type SQLDriver struct {
 
 var _ interfaces.ResourceDriver = (*SQLDriver)(nil)
 
+// SensitiveKeys returns output keys whose values should be masked in logs and plan output.
+func (d *SQLDriver) SensitiveKeys() []string { return nil }
+
 func NewSQLDriver(resourceGroup, location string, client SQLClient) *SQLDriver {
 	return &SQLDriver{resourceGroup: resourceGroup, location: location, client: client}
 }

@@ -49,6 +49,9 @@ type CertDriver struct {
 
 var _ interfaces.ResourceDriver = (*CertDriver)(nil)
 
+// SensitiveKeys returns output keys whose values should be masked in logs and plan output.
+func (d *CertDriver) SensitiveKeys() []string { return nil }
+
 func NewCertDriver(resourceGroup, location string, client CertClient) *CertDriver {
 	return &CertDriver{resourceGroup: resourceGroup, location: location, client: client}
 }

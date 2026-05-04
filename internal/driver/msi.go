@@ -49,6 +49,9 @@ type MSIDriver struct {
 
 var _ interfaces.ResourceDriver = (*MSIDriver)(nil)
 
+// SensitiveKeys returns output keys whose values should be masked in logs and plan output.
+func (d *MSIDriver) SensitiveKeys() []string { return nil }
+
 func NewMSIDriver(resourceGroup, location string, client MSIClient) *MSIDriver {
 	return &MSIDriver{resourceGroup: resourceGroup, location: location, client: client}
 }

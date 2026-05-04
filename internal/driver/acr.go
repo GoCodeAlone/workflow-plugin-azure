@@ -58,6 +58,9 @@ type ACRDriver struct {
 
 var _ interfaces.ResourceDriver = (*ACRDriver)(nil)
 
+// SensitiveKeys returns output keys whose values should be masked in logs and plan output.
+func (d *ACRDriver) SensitiveKeys() []string { return nil }
+
 func NewACRDriver(resourceGroup, location string, client ACRClient) *ACRDriver {
 	return &ACRDriver{resourceGroup: resourceGroup, location: location, client: client}
 }

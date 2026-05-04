@@ -52,6 +52,9 @@ type BlobDriver struct {
 
 var _ interfaces.ResourceDriver = (*BlobDriver)(nil)
 
+// SensitiveKeys returns output keys whose values should be masked in logs and plan output.
+func (d *BlobDriver) SensitiveKeys() []string { return nil }
+
 func NewBlobDriver(resourceGroup, location string, client BlobClientInterface) *BlobDriver {
 	return &BlobDriver{resourceGroup: resourceGroup, location: location, client: client}
 }
