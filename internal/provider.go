@@ -10,8 +10,11 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 	"github.com/GoCodeAlone/workflow-plugin-azure/internal/driver"
 	"github.com/GoCodeAlone/workflow/interfaces"
-	sdk "github.com/GoCodeAlone/workflow/plugin/external/sdk"
 )
+
+// ProviderVersion is the current plugin version. It is overridden at build time
+// by GoReleaser via -X github.com/GoCodeAlone/workflow-plugin-azure/internal.ProviderVersion=...
+var ProviderVersion = "1.0.0"
 
 // AzureProvider implements interfaces.IaCProvider for Microsoft Azure.
 type AzureProvider struct {
@@ -23,8 +26,7 @@ type AzureProvider struct {
 	drivers        map[string]interfaces.ResourceDriver
 }
 
-// Ensure AzureProvider satisfies both sdk.PluginProvider and interfaces.IaCProvider.
-var _ sdk.PluginProvider = (*AzureProvider)(nil)
+// Ensure AzureProvider satisfies interfaces.IaCProvider.
 var _ interfaces.IaCProvider = (*AzureProvider)(nil)
 
 // New creates a new AzureProvider with the given version string.
@@ -32,16 +34,6 @@ func New(version string) *AzureProvider {
 	return &AzureProvider{
 		version: version,
 		drivers: make(map[string]interfaces.ResourceDriver),
-	}
-}
-
-// Manifest implements sdk.PluginProvider.
-func (p *AzureProvider) Manifest() sdk.PluginManifest {
-	return sdk.PluginManifest{
-		Name:        "azure",
-		Version:     p.version,
-		Author:      "GoCodeAlone",
-		Description: "Microsoft Azure infrastructure provider (ACI, AKS, SQL, Redis, VNet, LB, DNS, ACR, APIM, NSG, MSI, Blob, Certificates)",
 	}
 }
 
