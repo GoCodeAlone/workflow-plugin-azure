@@ -125,6 +125,9 @@ func (s *azureIaCServer) Diff(ctx context.Context, req *pb.ResourceDiffRequest) 
 }
 
 func (s *azureIaCServer) Scale(ctx context.Context, req *pb.ResourceScaleRequest) (*pb.ResourceScaleResponse, error) {
+	if req.GetReplicas() < 0 {
+		return nil, status.Errorf(codes.InvalidArgument, "azure ResourceDriver.Scale: replicas must be >= 0, got %d", req.GetReplicas())
+	}
 	driver, err := s.resolveResourceDriver(req.GetResourceType())
 	if err != nil {
 		return nil, err

@@ -1,8 +1,8 @@
 // Package internal exercises the azureIaCServer typed gRPC methods.
 // Tests use a real *AzureProvider with no initialized Azure session;
 // only methods that do NOT require a live Azure credential are covered here.
-// Initialize, Plan, Apply, Destroy, Import, Status test coverage lives in
-// provider_test.go (existing suite).
+// provider_test.go covers Version, Capabilities, and Plan via the *AzureProvider
+// surface; Initialize (error path), drift detection, and compile guards live here.
 package internal
 
 import (
