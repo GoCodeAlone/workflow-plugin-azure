@@ -202,12 +202,13 @@ git commit -m "feat: add AzureProviderConfig proto contract for plugin.contracts
 
 ---
 
-### Task 3: Metadata updates — `plugin.json`, `plugin.contracts.json`, `internal/provider.go`
+### Task 3: Metadata updates — `plugin.json`, `plugin.contracts.json`, `internal/provider.go`, `.goreleaser.yaml`
 
 **Files:**
 - Modify: `plugin.json`
 - Create: `plugin.contracts.json`
 - Modify: `internal/provider.go`
+- Modify: `.goreleaser.yaml`
 
 **Step 1: Update `plugin.json`**
 
@@ -264,6 +265,14 @@ Remove:
 2. The `var _ sdk.PluginProvider = (*AzureProvider)(nil)` compile guard
 3. The `sdk "github.com/GoCodeAlone/workflow/plugin/external/sdk"` import (if it's only used by `Manifest()` and the compile guard)
 
+Add a package-level variable for GoReleaser version injection (mirrors AWS `provider.ProviderVersion`):
+
+```go
+// ProviderVersion is the current plugin version. It is overridden at build time
+// by GoReleaser via -X github.com/GoCodeAlone/workflow-plugin-azure/internal.ProviderVersion=...
+var ProviderVersion = "1.0.0"
+```
+
 After removal, the `AzureProvider` still satisfies `interfaces.IaCProvider` (which does NOT require `Manifest()`). The SDK import may still be needed if `sdk.PluginManifest` type is used elsewhere — if not, remove the import.
 
 **Step 4: Verify the updated provider still compiles**
@@ -290,12 +299,25 @@ GONOSUMDB="github.com/GoCodeAlone/*" GOPRIVATE="github.com/GoCodeAlone/*" go tes
 
 Expected: all remaining tests pass.
 
+**Step 6a: Update `.goreleaser.yaml` ldflags to inject version into `internal.ProviderVersion`**
+
+In `.goreleaser.yaml`, change the `ldflags` line from:
+```yaml
+      - -s -w -X main.version={{.Version}}
+```
+to:
+```yaml
+      - -s -w -X github.com/GoCodeAlone/workflow-plugin-azure/internal.ProviderVersion={{.Version}}
+```
+
+This ensures GoReleaser injects the correct version at build time (v1.0.1, v1.1.0, etc.) into `ProviderVersion` rather than targeting the now-removed `var version` in `main.go`. Without this fix, all future releases after v1.0.0 would report version `"1.0.0"` regardless of the git tag.
+
 **Step 7: Commit**
 
 ```bash
 cd /Users/jon/workspace/workflow-plugin-azure
-git add plugin.json plugin.contracts.json internal/provider.go internal/provider_test.go
-git commit -m "feat: update plugin metadata for v1.0.0 typed-IaC — plugin.json, plugin.contracts.json, remove Manifest()"
+git add plugin.json plugin.contracts.json internal/provider.go internal/provider_test.go .goreleaser.yaml
+git commit -m "feat: update plugin metadata for v1.0.0 typed-IaC — plugin.json, plugin.contracts.json, remove Manifest(), add ProviderVersion var, fix goreleaser ldflags"
 ```
 
 ---
@@ -311,14 +333,14 @@ This is the main new file. It mirrors `internal/iacserver.go` in workflow-plugin
 
 The file structure matches AWS v1.0.0 (`/Users/jon/workspace/workflow-plugin-aws/internal/iacserver.go`) with these substitutions:
 - Package comment: `azureIaCServer` not `awsIaCServer`
-- Provider import: `"github.com/GoCodeAlone/workflow-plugin-azure/internal"` — NOTE: the Azure provider lives in `internal` package directly (`internal.AzureProvider`), not in a `provider` sub-package like AWS. The `New(version string)` constructor signature is `New(version string) *AzureProvider`.
+- No provider import needed — `iacserver.go` is `package internal`, same package as `AzureProvider`. All provider types and `ProviderVersion` are accessed directly (same-package, no import). The `New(version string) *AzureProvider` constructor is called as `New(ProviderVersion)` within `NewIaCServer()`.
 - Struct name: `azureIaCServer`
 - Constructor: `NewIaCServer()` returns `*azureIaCServer`, creates `New("1.0.0")` provider
 - All error messages: `"azure iacserver: ..."` prefix
 
-Key implementation note: The `AzureProvider` is in the `internal` package itself (not a sub-package). `iacserver.go` is also in the `internal` package. So the struct references `*AzureProvider` directly (same package), not `internal.AzureProvider`.
+Key implementation note: The `AzureProvider` is in the `internal` package itself (not a sub-package). `iacserver.go` is also in the `internal` package (`package internal`). So the struct references `*AzureProvider` directly (same package, no import needed).
 
-The `newAzureIaCServer(p *AzureProvider)` helper takes `*AzureProvider`, and `NewIaCServer()` calls `newAzureIaCServer(New("1.0.0"))`.
+The `newAzureIaCServer(p *AzureProvider)` helper takes `*AzureProvider`, and `NewIaCServer()` calls `newAzureIaCServer(New(ProviderVersion))` — using the package-level `ProviderVersion` var added in Task 3 so GoReleaser ldflags injection flows through correctly.
 
 The struct definition:
 
@@ -452,7 +474,7 @@ func main() {
 }
 ```
 
-Note: `var version = "dev"` is removed; version is hardcoded in `NewIaCServer()` → `New("1.0.0")`.
+Note: `var version = "dev"` is removed. `NewIaCServer()` calls `New(ProviderVersion)` using the package-level `ProviderVersion` var from `internal/provider.go`. GoReleaser injects the correct version at build time via `-X github.com/GoCodeAlone/workflow-plugin-azure/internal.ProviderVersion={{.Version}}`.
 
 **Step 2: Build the plugin binary**
 
@@ -501,8 +523,8 @@ Tests to include:
 4. `TestIaCServer_Capabilities` — asserts `infra.container_service` is present
 5. `TestIaCServer_Initialize_EmptyConfig` — empty `{}` config should return an error (azure subscription_id required)
 6. `TestIaCServer_CompileTimeGuards` — inline `var _ pb.*Server = (*azureIaCServer)(nil)` assertions
-7. `TestIaCServer_DetectDrift_Uninitialized` — expects error from uninitialized provider
-8. `TestIaCServer_DetectDriftWithSpecs_DelegatesToDetectDrift` — expects same error as DetectDrift
+7. `TestIaCServer_DetectDrift_Uninitialized` — **Azure-specific behavior**: `AzureProvider.DetectDrift` does NOT return an error for an uninitialized provider; it swallows driver lookup failures and returns a non-drifted result with `nil` error. This differs from the AWS pattern. The test MUST assert `err == nil` and `len(resp.GetDrifts()) == 1` and `!resp.GetDrifts()[0].GetDrifted()`. Do NOT copy the AWS test assertion that expects `err != nil`.
+8. `TestIaCServer_DetectDriftWithSpecs_DelegatesToDetectDrift` — same Azure-specific behavior: assert `err == nil` and `len(resp.GetDrifts()) == 1`.
 
 **Step 2: Write `internal/host_conformance_test.go`**
 
@@ -632,7 +654,7 @@ env:
   GOPRIVATE: github.com/GoCodeAlone/*
 
 jobs:
-  legacy-module-engine-range:
+  typed-iac-engine-range:
     runs-on: ubuntu-latest
     permissions:
       contents: read
