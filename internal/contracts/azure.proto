@@ -1,0 +1,19 @@
+syntax = "proto3";
+
+package workflow.plugins.azure.v1;
+
+option go_package = "github.com/GoCodeAlone/workflow-plugin-azure/internal/contracts;contracts";
+
+// AzureProviderConfig is the typed configuration for the iac.provider module
+// provided by workflow-plugin-azure. All fields correspond to the map keys
+// accepted by the Initialize(ctx, map[string]any) path.
+message AzureProviderConfig {
+  // subscription_id is the Azure subscription ID (required).
+  string subscription_id = 1;
+  // resource_group is the default Azure resource group (required).
+  string resource_group = 2;
+  // location is the Azure region (default: eastus).
+  string location = 3;
+  // storage_account is the Azure Storage account name for Blob operations (optional).
+  string storage_account = 4;
+}

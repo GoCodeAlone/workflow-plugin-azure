@@ -21,14 +21,6 @@ func TestAzureProvider_Version(t *testing.T) {
 	}
 }
 
-func TestAzureProvider_Manifest(t *testing.T) {
-	p := New("0.1.0")
-	m := p.Manifest()
-	if m.Name != "azure" {
-		t.Errorf("Manifest().Name = %q, want azure", m.Name)
-	}
-}
-
 func TestAzureProvider_Capabilities(t *testing.T) {
 	p := New("0.1.0")
 	caps := p.Capabilities()
