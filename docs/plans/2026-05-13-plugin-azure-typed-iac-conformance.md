@@ -31,7 +31,7 @@
 |------|-------|-------|--------|
 | 1 | feat: typed-IaC strict-contracts migration — Azure plugin v1.0.0 | Task 1, Task 2, Task 3, Task 4, Task 5, Task 6, Task 7, Task 8 | feat/typed-iac-azure-v1 |
 
-**Status:** Draft
+**Status:** Locked 2026-05-13T00:00:00Z
 
 ---
 
