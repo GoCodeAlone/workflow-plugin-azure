@@ -96,7 +96,9 @@ The `var _ sdk.PluginProvider = (*AzureProvider)(nil)` compile guard is also rem
 |------|--------|
 | `go.mod` | Bump `workflow v0.19.2` → `v0.51.7`; run `go mod tidy` first |
 | `plugin.json` | Bump `version` to `1.0.0`, `minEngineVersion` to `0.51.0`; update manifest shape to match AWS v1.0.0 (add `moduleTypes: ["iac.provider"]`, remove `iacProvider: true` + `resourceTypes`) |
-| `plugin.contracts.json` | NEW: copy AWS v1.0.0 `plugin.contracts.json` but use `azure` module type config message |
+| `plugin.contracts.json` | NEW: `{"version":"v1","contracts":[{"kind":"module","type":"iac.provider","mode":"strict","config":"workflow.plugins.azure.v1.AzureProviderConfig"}]}`; requires `internal/contracts/azure.proto` + generated `azure.pb.go` (extract from `strict-contract` branch, strip `module_instance.go` integration) |
+| `internal/contracts/azure.proto` | NEW (extracted from strict-contract branch): proto message `AzureProviderConfig` with fields: `subscription_id`, `resource_group`, `location`, `storage_account` |
+| `internal/contracts/azure.pb.go` | NEW: generated from `azure.proto` via protoc |
 | `internal/provider.go` | Remove `Manifest()`, `var _ sdk.PluginProvider`, update version constant |
 
 **plugin.json shape after:** mirrors AWS v1.0.0 (capabilities with `moduleTypes: ["iac.provider"]`,
@@ -109,7 +111,7 @@ no `iacProvider` or `resourceTypes` at capability level).
 | `internal/iacserver_test.go` | NEW: unit tests for all server methods (same pattern as AWS) |
 | `internal/host_conformance_test.go` | NEW: mirrors AWS v1.0.0 `host_conformance_test.go` with `azure` substituted for `aws` |
 | `internal/provider_test.go` | Remove test for `Manifest()` (method deleted) |
-| `integration_test.go` | Leave as-is (uses wftest mocks, unaffected by gRPC cutover) |
+| `integration_test.go` | Leave as-is (uses wftest mocks, unaffected by gRPC cutover); verify it compiles and passes under workflow v0.51.7 after go.mod bump as part of plan task |
 
 **`host_conformance_test.go` spec** (mirrors AWS v1.0.0 exactly):
 1. Build plugin binary via `go build -o <tmpdir>/workflow-plugin-azure ./cmd/workflow-plugin-azure`
@@ -121,11 +123,15 @@ no `iacProvider` or `resourceTypes` at capability level).
 
 ### Phase 5 — CI
 
-No new CI gates needed. Existing `go test ./...` + `WORKFLOW_IAC_HOST_CONFORMANCE=1`
-gate via `host_conformance_test.go` covers the typed-IaC load path.
+Add `scripts/workflow-iac-host-conformance.sh` (mirroring AWS v1.0.0) with the
+`-run` flag set to `TestWorkflowHostConformance_LoadsTypedIaCPlugin` (NOT
+`LoadsLegacyIaCModulePlugin` — the AWS script has a stale name that causes silent
+skip; Azure must use the correct typed-IaC test name from the start).
 
-The `.github/workflows/ci.yml` already runs `go test ./...`. If an
-`iac-host-conformance.yml` CI workflow exists in AWS, mirror it.
+Add `.github/workflows/iac-host-conformance.yml` mirroring AWS v1.0.0.
+
+The existing `ci.yml` runs `go test ./...` which covers all non-conformance tests.
+The conformance workflow provides the typed-IaC load path gate.
 
 ## Compile-time guards
 
@@ -181,15 +187,11 @@ Old workflow engine tags (pre-v0.50.0) are permanently incompatible after this P
 ## Open questions resolved
 
 - Q: Start from `main` or `fix/bootstrap-state-backend-stub`?
-  A: Main. The fix branches haven't merged to main yet per git log. The migration PR
-  will be from `main` and will cherry-pick/include the bootstrap+SensitiveKeys fixes
-  since they were already merged to main (the current main HEAD is `37b861b` = SensitiveKeys
-  fix, and `fix/bootstrap-state-backend-stub` adds 2 more commits on top). The PR should
-  branch from `main` and the bootstrap fix commits are part of the migration.
-  Actually, re-reading: `fix/bootstrap-state-backend-stub` HEAD is `f9071c4` (polish) and
-  is 2 commits ahead of main `37b861b`. Those 2 commits ARE already in remote but not merged
-  to main. The migration branch should branch from `fix/bootstrap-state-backend-stub` HEAD
-  to incorporate those fixes, then build the typed-IaC cutover on top.
+  A: Branch from `fix/bootstrap-state-backend-stub` HEAD (commit `f9071c4`). That branch
+  is 2 commits ahead of `main` with `BootstrapStateBackend` and `SupportedCanonicalKeys`
+  stubs that are required by `interfaces.IaCProvider`. Those changes have not yet merged to
+  `main`. The migration PR will include them as part of the typed-IaC cutover commit history.
+  The base branch for the PR is `main` (the PR merges bootstrap fixes + typed-IaC together).
 - Q: Single PR vs multiple? A: Single-PR force-cutover per mandate.
 - Q: Keep `internal/contracts/` from the old strict-contract branch? A: No. The old
   `module_instance.go` approach is discarded. The new approach uses
