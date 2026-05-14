@@ -1,6 +1,6 @@
 {
   "name": "workflow-plugin-azure",
-  "version": "1.0.0",
+  "version": "1.1.1",
   "author": "GoCodeAlone",
   "description": "Microsoft Azure infrastructure provider: ACI, AKS, SQL, Redis, VNet, LB, DNS, ACR, APIM, NSG, MSI, Blob Storage, App Service Certificates",
   "license": "MIT",

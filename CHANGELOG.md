@@ -2,6 +2,25 @@
 
 All notable changes to `workflow-plugin-azure` are documented here.
 
+## v1.1.1
+
+### Added
+
+- **`IaCStateBackend.Configure` RPC handler.** The `azure_blob` backend now
+  constructs its store from host-supplied config (closes the Phase-A
+  config-plumbing gap). `azureIaCServer.Configure` decodes the iac.state
+  module config delivered by the engine and lazily builds the
+  `AzureBlobIaCStateStore` — previously the store was left `nil` and the
+  state RPCs returned `FailedPrecondition`.
+
+### Migration note
+
+**Must be co-deployed with `workflow` core that includes PR 1** — a
+post-PR-1 engine calls `IaCStateBackend.Configure` during
+`IaCModule.Init()`; `v1.1.0` returns `Unimplemented` and causes a loud
+startup failure (better than the prior silent `FailedPrecondition`, but a
+co-deploy requirement).
+
 ## v1.1.0
 
 ### Added
