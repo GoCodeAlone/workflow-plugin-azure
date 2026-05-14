@@ -6,7 +6,7 @@
   "license": "MIT",
   "type": "external",
   "tier": "community",
-  "minEngineVersion": "0.51.2",
+  "minEngineVersion": "0.51.11-0.20260514192544-9d7ca68eddd2",
   "keywords": ["azure", "iac", "infrastructure", "cloud", "aci", "aks", "sql", "redis", "vnet"],
   "homepage": "https://github.com/GoCodeAlone/workflow-plugin-azure",
   "repository": "https://github.com/GoCodeAlone/workflow-plugin-azure",
@@ -16,6 +16,7 @@
       "iac.provider"
     ],
     "stepTypes": [],
-    "triggerTypes": []
+    "triggerTypes": [],
+    "iacStateBackends": ["azure_blob"]
   }
 }
