@@ -16,7 +16,7 @@ require (
 	github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/redis/armredis v1.0.0
 	github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/sql/armsql v1.2.0
 	github.com/Azure/azure-sdk-for-go/sdk/storage/azblob v1.6.4
-	github.com/GoCodeAlone/workflow v0.51.7
+	github.com/GoCodeAlone/workflow v0.51.11-0.20260514192544-9d7ca68eddd2
 	google.golang.org/grpc v1.80.0
 	google.golang.org/protobuf v1.36.11
 )
@@ -59,18 +59,11 @@ require (
 	github.com/aws/aws-sdk-go-v2/internal/configsources v1.4.22 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.7.22 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/v4a v1.4.23 // indirect
-	github.com/aws/aws-sdk-go-v2/service/apigatewayv2 v1.33.8 // indirect
-	github.com/aws/aws-sdk-go-v2/service/applicationautoscaling v1.41.13 // indirect
-	github.com/aws/aws-sdk-go-v2/service/codebuild v1.68.12 // indirect
-	github.com/aws/aws-sdk-go-v2/service/ec2 v1.296.0 // indirect
-	github.com/aws/aws-sdk-go-v2/service/ecs v1.76.0 // indirect
-	github.com/aws/aws-sdk-go-v2/service/eks v1.81.2 // indirect
 	github.com/aws/aws-sdk-go-v2/service/internal/accept-encoding v1.13.8 // indirect
 	github.com/aws/aws-sdk-go-v2/service/internal/checksum v1.9.12 // indirect
 	github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.13.22 // indirect
 	github.com/aws/aws-sdk-go-v2/service/internal/s3shared v1.19.20 // indirect
 	github.com/aws/aws-sdk-go-v2/service/kinesis v1.43.4 // indirect
-	github.com/aws/aws-sdk-go-v2/service/route53 v1.62.5 // indirect
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.97.2 // indirect
 	github.com/aws/aws-sdk-go-v2/service/signin v1.0.10 // indirect
 	github.com/aws/aws-sdk-go-v2/service/sso v1.30.16 // indirect

@@ -43,8 +43,15 @@ type azureIaCServer struct {
 	pb.UnimplementedIaCProviderValidatorServer
 	pb.UnimplementedIaCProviderDriftConfigDetectorServer
 	pb.UnimplementedResourceDriverServer
+	pb.UnimplementedIaCStateBackendServer
 
 	provider *AzureProvider
+
+	// stateBackend serves the typed pb.IaCStateBackendServer surface
+	// (azure_blob backend). Per decisions/0035, this one type carries both the
+	// IaC-provider and the IaC-state-backend concerns. The backing store is
+	// constructed lazily — see internal/statebackend_server.go.
+	stateBackend stateBackend
 }
 
 // newAzureIaCServer constructs a typed-IaC server backed by the given
@@ -73,6 +80,10 @@ var (
 	// delegates to DetectDrift (existence-only behavior; ignores the specs map).
 	_ pb.IaCProviderDriftDetectorServer = (*azureIaCServer)(nil)
 	_ pb.ResourceDriverServer           = (*azureIaCServer)(nil)
+	// azureIaCServer also SERVES the typed IaC state-backend contract
+	// (azure_blob backend). The SDK serve hook auto-registers this via
+	// type-assertion at plugin startup — see cmd/workflow-plugin-azure/main.go.
+	_ pb.IaCStateBackendServer = (*azureIaCServer)(nil)
 )
 
 // ── Required service methods ────────────────────────────────────────────────

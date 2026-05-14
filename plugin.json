@@ -16,6 +16,7 @@
       "iac.provider"
     ],
     "stepTypes": [],
-    "triggerTypes": []
+    "triggerTypes": [],
+    "iacStateBackends": ["azure_blob"]
   }
 }
