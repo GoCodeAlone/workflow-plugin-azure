@@ -22,6 +22,8 @@ import (
 
 	"github.com/GoCodeAlone/workflow-plugin-azure/internal/statebackend"
 	pb "github.com/GoCodeAlone/workflow/plugin/external/proto"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 // azureStateBackendName is the single iac.state backend name this plugin serves.
@@ -34,18 +36,22 @@ type stateBackend struct {
 	store *statebackend.AzureBlobIaCStateStore
 }
 
-// resolveStore returns the configured store, or a clear error if the host has
-// not yet provisioned an azure_blob backend for this plugin process.
+// resolveStore returns the configured store, or a codes.FailedPrecondition
+// gRPC status if the host has not yet provisioned an azure_blob backend for
+// this plugin process.
 //
-// The state-backend contract has no Initialize RPC of its own — a future PR may
-// add backend configuration plumbing. For now the store is set via
-// setStateStore (used by tests / the engine wiring); an unset store yields a
-// descriptive error rather than a nil-pointer panic.
+// The state-backend contract has no Initialize RPC of its own — backend
+// configuration plumbing (account URL, container, credential) is a follow-up
+// PR. Until then the store is set via setStateStore (engine wiring / tests).
+// An unset store yields FailedPrecondition — distinct from a generic Internal
+// error — so the engine can tell "backend not wired" apart from a real
+// storage failure, rather than the server panicking on a nil store.
 func (b *stateBackend) resolveStore() (*statebackend.AzureBlobIaCStateStore, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	if b.store == nil {
-		return nil, fmt.Errorf("azure state backend: azure_blob backend is not configured")
+		return nil, status.Error(codes.FailedPrecondition,
+			"azure state backend: azure_blob backend is not configured")
 	}
 	return b.store, nil
 }

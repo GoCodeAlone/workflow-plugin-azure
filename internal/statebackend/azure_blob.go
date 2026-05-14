@@ -19,6 +19,7 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
 	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob"
 	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob/blob"
+	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob/bloberror"
 	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob/lease"
 )
 
@@ -49,6 +50,10 @@ func sanitizeID(id string) string {
 }
 
 // matchesFilter returns true if state satisfies all entries in the filter map.
+// Only the allow-listed keys "resource_type", "provider", and "status" are
+// honored — any other key is ignored (a record is NOT excluded by an
+// unrecognized filter key). This mirrors the FS and in-memory IaCStateStore
+// implementations in workflow core so all three backends filter identically.
 func matchesFilter(st *IaCState, filter map[string]string) bool {
 	for k, v := range filter {
 		switch k {
@@ -94,14 +99,19 @@ type AzureBlobIaCStateStore struct {
 
 // NewAzureBlobIaCStateStore creates an Azure Blob-backed state store.
 // accountURL should be of the form https://<account>.blob.core.windows.net.
-func NewAzureBlobIaCStateStore(accountURL, container, prefix string, cred azblob.SharedKeyCredential) (*AzureBlobIaCStateStore, error) {
+// cred is the pointer returned by azblob.NewSharedKeyCredential — matching the
+// underlying SDK signature so callers do not need to dereference.
+func NewAzureBlobIaCStateStore(accountURL, container, prefix string, cred *azblob.SharedKeyCredential) (*AzureBlobIaCStateStore, error) {
 	if container == "" {
 		return nil, fmt.Errorf("iac azure state: container must not be empty")
+	}
+	if cred == nil {
+		return nil, fmt.Errorf("iac azure state: credential must not be nil")
 	}
 	if prefix == "" {
 		prefix = "iac-state/"
 	}
-	client, err := azblob.NewClientWithSharedKeyCredential(accountURL, &cred, nil)
+	client, err := azblob.NewClientWithSharedKeyCredential(accountURL, cred, nil)
 	if err != nil {
 		return nil, fmt.Errorf("iac azure state: create client: %w", err)
 	}
@@ -219,7 +229,7 @@ func (s *AzureBlobIaCStateStore) Lock(ctx context.Context, resourceID string) er
 	lockBlob := s.lockBlobName(resourceID)
 	leaseID, err := s.client.AcquireLease(ctx, lockBlob, 60)
 	if err != nil {
-		if strings.Contains(err.Error(), "already leased") || strings.Contains(err.Error(), "leased") {
+		if isAzureLeaseHeld(err) {
 			return fmt.Errorf("iac azure state: Lock %q: resource is already locked", resourceID)
 		}
 		return fmt.Errorf("iac azure state: Lock %q: %w", resourceID, err)
@@ -308,6 +318,15 @@ func (c *azureRealClient) AcquireLease(ctx context.Context, name string, duratio
 		return "", err
 	}
 	resp, err := leaseClient.AcquireLease(ctx, durationSeconds, nil)
+	if err != nil && bloberror.HasCode(err, bloberror.BlobNotFound) {
+		// Azure requires the target blob to exist before a lease can be
+		// acquired. On a clean container the lock blob does not exist yet —
+		// create an empty placeholder, then retry the lease acquire once.
+		if cErr := c.UploadBlob(ctx, name, []byte{}, "application/octet-stream"); cErr != nil {
+			return "", fmt.Errorf("create lock blob %q: %w", name, cErr)
+		}
+		resp, err = leaseClient.AcquireLease(ctx, durationSeconds, nil)
+	}
 	if err != nil {
 		return "", err
 	}
@@ -330,4 +349,19 @@ func (c *azureRealClient) ReleaseLease(ctx context.Context, name, leaseID string
 func isAzureNotFound(err error) bool {
 	var respErr *azcore.ResponseError
 	return errors.As(err, &respErr) && respErr.StatusCode == 404
+}
+
+// isAzureLeaseHeld reports whether err indicates the lock blob is already
+// leased by another holder. The real azblob SDK returns a structured
+// *azcore.ResponseError with ErrorCode "LeaseAlreadyPresent" (HTTP 409); the
+// substring fallback covers injected test clients that return a plain error.
+func isAzureLeaseHeld(err error) bool {
+	if bloberror.HasCode(err, bloberror.LeaseAlreadyPresent) {
+		return true
+	}
+	var respErr *azcore.ResponseError
+	if errors.As(err, &respErr) && respErr.StatusCode == 409 {
+		return true
+	}
+	return strings.Contains(err.Error(), "already leased") || strings.Contains(err.Error(), "leased")
 }
