@@ -4,6 +4,11 @@ on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to release (e.g. v1.1.1)'
+        required: true
 
 permissions:
   contents: write
@@ -15,11 +20,19 @@ env:
 
 jobs:
   release:
-    runs-on: [self-hosted, Linux, X64]
+    # ubuntu-latest (GitHub-hosted) matches DO / aws / gcp plugins. The
+    # GoCodeAlone org's Default self-hosted runner group disallows public
+    # repositories, so the previous [self-hosted, Linux, X64] selector blocked
+    # this public repo's release job indefinitely.
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
         with:
           fetch-depth: 0
+          # On push-tag, github.ref is refs/tags/<tag>; on workflow_dispatch,
+          # check out the requested tag explicitly so re-triggers for stuck
+          # tags work without a force-tag dance.
+          ref: ${{ inputs.tag || github.ref }}
 
       - name: Configure git for private modules
         run: git config --global url."https://${{ secrets.RELEASES_TOKEN }}@github.com/".insteadOf "https://github.com/"
