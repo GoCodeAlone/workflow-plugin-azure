@@ -2,6 +2,7 @@ package internal
 
 import (
 	"context"
+	"encoding/json"
 	"testing"
 
 	"github.com/GoCodeAlone/workflow-plugin-azure/internal/statebackend"
@@ -33,6 +34,52 @@ func TestIaCServer_StateBackend_NotConfigured(t *testing.T) {
 	}
 	if _, err := s.SaveState(context.Background(), &pb.SaveStateRequest{State: &pb.IaCState{ResourceId: "x"}}); err == nil {
 		t.Error("SaveState: expected error when backend not configured")
+	}
+}
+
+func TestIaCServer_StateBackend_Configure(t *testing.T) {
+	s := NewIaCServer()
+
+	// Before Configure, the backend is unconfigured — resolveStore must fail.
+	if _, err := s.stateBackend.resolveStore(); err == nil {
+		t.Fatal("resolveStore: expected FailedPrecondition before Configure")
+	}
+
+	cfg := map[string]any{
+		"backend":      "azure_blob",
+		"account_url":  "https://testacct.blob.core.windows.net",
+		"account_name": "testacct",
+		// base64("testkey") — NewSharedKeyCredential base64-decodes the key.
+		"account_key": "dGVzdGtleQ==",
+		"container":   "tfstate",
+		"prefix":      "iac-state/",
+	}
+	cfgJSON, err := json.Marshal(cfg)
+	if err != nil {
+		t.Fatalf("marshal cfg: %v", err)
+	}
+	if _, err := s.Configure(context.Background(), &pb.ConfigureRequest{
+		BackendName: "azure_blob",
+		ConfigJson:  cfgJSON,
+	}); err != nil {
+		t.Fatalf("Configure: %v", err)
+	}
+
+	// After Configure, the lazily-constructed store must resolve.
+	store, err := s.stateBackend.resolveStore()
+	if err != nil {
+		t.Fatalf("resolveStore after Configure: %v", err)
+	}
+	if store == nil {
+		t.Fatal("resolveStore after Configure: store is nil")
+	}
+
+	// A Configure for a backend name this plugin does not serve must be rejected.
+	if _, err := s.Configure(context.Background(), &pb.ConfigureRequest{
+		BackendName: "s3",
+		ConfigJson:  cfgJSON,
+	}); err == nil {
+		t.Error("Configure: expected error for unknown backend name")
 	}
 }
 

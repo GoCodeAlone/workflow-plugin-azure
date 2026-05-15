@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob"
 	"github.com/GoCodeAlone/workflow-plugin-azure/internal/statebackend"
 	pb "github.com/GoCodeAlone/workflow/plugin/external/proto"
 	"google.golang.org/grpc/codes"
@@ -63,7 +64,56 @@ func (b *stateBackend) setStateStore(s *statebackend.AzureBlobIaCStateStore) {
 	b.store = s
 }
 
+// azureBlobConfig is the iac.state module config the host delivers via the
+// Configure RPC. The JSON keys mirror exactly the config keys the (now-deleted)
+// in-core azure_blob switch case in workflow core's iac_module.go read.
+type azureBlobConfig struct {
+	AccountURL  string `json:"account_url"`
+	AccountName string `json:"account_name"`
+	AccountKey  string `json:"account_key"`
+	Container   string `json:"container"`
+	Prefix      string `json:"prefix"`
+}
+
 // ── pb.IaCStateBackendServer methods (on azureIaCServer) ────────────────────
+
+// Configure decodes the host-delivered iac.state module config and lazily
+// constructs the azure_blob state store, satisfying decisions/0036's
+// host-config plumbing. Until Configure runs, the state RPCs return
+// FailedPrecondition (see resolveStore). The config_json bytes carry the
+// module config map[string]any per the iac.proto JSON-bytes invariant.
+func (s *azureIaCServer) Configure(_ context.Context, req *pb.ConfigureRequest) (*pb.ConfigureResponse, error) {
+	if req.GetBackendName() != azureStateBackendName {
+		return nil, status.Errorf(codes.InvalidArgument,
+			"azure state backend: Configure for backend %q — this plugin serves only %q",
+			req.GetBackendName(), azureStateBackendName)
+	}
+	var cfg azureBlobConfig
+	if err := json.Unmarshal(req.GetConfigJson(), &cfg); err != nil {
+		return nil, status.Errorf(codes.InvalidArgument,
+			"azure state backend: decode Configure config: %v", err)
+	}
+	if cfg.Container == "" {
+		return nil, status.Error(codes.InvalidArgument,
+			"azure state backend: azure_blob backend requires 'container' config")
+	}
+	if cfg.AccountURL == "" || cfg.AccountName == "" || cfg.AccountKey == "" {
+		return nil, status.Error(codes.InvalidArgument,
+			"azure state backend: azure_blob backend requires 'account_url', 'account_name', and 'account_key' config")
+	}
+	cred, err := azblob.NewSharedKeyCredential(cfg.AccountName, cfg.AccountKey)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument,
+			"azure state backend: invalid azure_blob credential: %v", err)
+	}
+	store, err := statebackend.NewAzureBlobIaCStateStore(cfg.AccountURL, cfg.Container, cfg.Prefix, cred)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument,
+			"azure state backend: construct azure_blob store: %v", err)
+	}
+	s.stateBackend.setStateStore(store)
+	return &pb.ConfigureResponse{}, nil
+}
 
 // GetState retrieves a state record by resource ID.
 func (s *azureIaCServer) GetState(ctx context.Context, req *pb.GetStateRequest) (*pb.GetStateResponse, error) {
