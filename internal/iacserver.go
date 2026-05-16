@@ -123,7 +123,10 @@ func (s *azureIaCServer) Capabilities(_ context.Context, _ *pb.CapabilitiesReque
 			Operations:   append([]string(nil), c.Operations...),
 		})
 	}
-	return &pb.CapabilitiesResponse{Capabilities: out}, nil
+	return &pb.CapabilitiesResponse{
+		Capabilities:       out,
+		ComputePlanVersion: "v2",
+	}, nil
 }
 
 func (s *azureIaCServer) Plan(ctx context.Context, req *pb.PlanRequest) (*pb.PlanResponse, error) {
