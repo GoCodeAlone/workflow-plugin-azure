@@ -134,56 +134,6 @@ func (p *AzureProvider) Plan(_ context.Context, desired []interfaces.ResourceSpe
 	}, nil
 }
 
-// Apply executes the given plan by delegating to resource drivers.
-func (p *AzureProvider) Apply(ctx context.Context, plan *interfaces.IaCPlan) (*interfaces.ApplyResult, error) {
-	p.mu.RLock()
-	defer p.mu.RUnlock()
-
-	result := &interfaces.ApplyResult{PlanID: plan.ID}
-	for _, action := range plan.Actions {
-		drv, err := p.resourceDriver(action.Resource.Type)
-		if err != nil {
-			result.Errors = append(result.Errors, interfaces.ActionError{
-				Resource: action.Resource.Name,
-				Action:   action.Action,
-				Error:    err.Error(),
-			})
-			continue
-		}
-
-		var out *interfaces.ResourceOutput
-		switch action.Action {
-		case "create":
-			out, err = drv.Create(ctx, action.Resource)
-		case "update":
-			ref := interfaces.ResourceRef{Name: action.Resource.Name, Type: action.Resource.Type}
-			if action.Current != nil {
-				ref.ProviderID = action.Current.ProviderID
-			}
-			out, err = drv.Update(ctx, ref, action.Resource)
-		case "delete":
-			ref := interfaces.ResourceRef{Name: action.Resource.Name, Type: action.Resource.Type}
-			if action.Current != nil {
-				ref.ProviderID = action.Current.ProviderID
-			}
-			err = drv.Delete(ctx, ref)
-		}
-
-		if err != nil {
-			result.Errors = append(result.Errors, interfaces.ActionError{
-				Resource: action.Resource.Name,
-				Action:   action.Action,
-				Error:    err.Error(),
-			})
-			continue
-		}
-		if out != nil {
-			result.Resources = append(result.Resources, *out)
-		}
-	}
-	return result, nil
-}
-
 // Destroy deletes a set of resources by calling each driver's Delete method.
 func (p *AzureProvider) Destroy(ctx context.Context, resources []interfaces.ResourceRef) (*interfaces.DestroyResult, error) {
 	p.mu.RLock()
