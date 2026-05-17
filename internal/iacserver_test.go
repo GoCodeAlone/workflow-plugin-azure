@@ -109,3 +109,18 @@ func TestIaCServer_DetectDriftWithSpecs_DelegatesToDetectDrift(t *testing.T) {
 		t.Error("expected Drifted=false for uninitialized provider")
 	}
 }
+
+// TestAzureIaCServer_Capabilities_ComputePlanVersionV2 pins the Phase 2
+// contract signal: the plugin MUST declare ComputePlanVersion="v2" so
+// wfctl routes via wfctlhelpers.ApplyPlanWithHooks (v2 dispatch).
+// Per workflow#640 + #695 Phase 2 + 2.5 cascade closeout.
+func TestAzureIaCServer_Capabilities_ComputePlanVersionV2(t *testing.T) {
+	s := NewIaCServer()
+	resp, err := s.Capabilities(context.Background(), &pb.CapabilitiesRequest{})
+	if err != nil {
+		t.Fatalf("Capabilities: %v", err)
+	}
+	if got := resp.GetComputePlanVersion(); got != "v2" {
+		t.Errorf("CapabilitiesResponse.ComputePlanVersion = %q; want %q (v2 dispatch opt-in lost)", got, "v2")
+	}
+}
