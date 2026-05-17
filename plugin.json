@@ -1,13 +1,23 @@
 {
   "name": "workflow-plugin-azure",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "author": "GoCodeAlone",
   "description": "Microsoft Azure infrastructure provider: ACI, AKS, SQL, Redis, VNet, LB, DNS, ACR, APIM, NSG, MSI, Blob Storage, App Service Certificates",
   "license": "MIT",
   "type": "external",
   "tier": "community",
   "minEngineVersion": "0.54.0",
-  "keywords": ["azure", "iac", "infrastructure", "cloud", "aci", "aks", "sql", "redis", "vnet"],
+  "keywords": [
+    "azure",
+    "iac",
+    "infrastructure",
+    "cloud",
+    "aci",
+    "aks",
+    "sql",
+    "redis",
+    "vnet"
+  ],
   "homepage": "https://github.com/GoCodeAlone/workflow-plugin-azure",
   "repository": "https://github.com/GoCodeAlone/workflow-plugin-azure",
   "capabilities": {
@@ -17,6 +27,8 @@
     ],
     "stepTypes": [],
     "triggerTypes": [],
-    "iacStateBackends": ["azure_blob"]
+    "iacStateBackends": [
+      "azure_blob"
+    ]
   }
 }
