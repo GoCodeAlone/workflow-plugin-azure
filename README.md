@@ -22,7 +22,7 @@ Azure provider plugin for workflow IaC — manages ACI, AKS, SQL, Redis, VNet, L
 version: 1
 plugins:
   - name: workflow-plugin-azure
-    version: v2.0.0
+    version: v1.2.1
     source: github.com/GoCodeAlone/workflow-plugin-azure
 ```
 
