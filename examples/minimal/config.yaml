@@ -1,0 +1,14 @@
+# Minimal workflow-plugin-azure example
+# Requires: AZURE_SUBSCRIPTION_ID, AZURE_TENANT_ID, AZURE_CLIENT_ID, AZURE_CLIENT_SECRET env vars
+
+version: 1
+
+modules:
+  - name: azure-provider
+    type: iac.provider
+    config:
+      provider: azure
+      subscriptionId: ${AZURE_SUBSCRIPTION_ID}
+      tenantId: ${AZURE_TENANT_ID}
+      clientId: ${AZURE_CLIENT_ID}
+      clientSecret: ${AZURE_CLIENT_SECRET}
