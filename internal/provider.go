@@ -12,9 +12,9 @@ import (
 	"github.com/GoCodeAlone/workflow/interfaces"
 )
 
-// ProviderVersion is the current plugin version. It is overridden at build time
-// by GoReleaser via -X github.com/GoCodeAlone/workflow-plugin-azure/internal.ProviderVersion=...
-var ProviderVersion = "1.0.0"
+// Version is the current plugin version. It is overridden at build time
+// by GoReleaser via -X github.com/GoCodeAlone/workflow-plugin-azure/internal.Version=...
+var Version = "dev"
 
 // AzureProvider implements interfaces.IaCProvider for Microsoft Azure.
 type AzureProvider struct {

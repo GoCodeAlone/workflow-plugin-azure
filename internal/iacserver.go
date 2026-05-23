@@ -67,7 +67,7 @@ func newAzureIaCServer(p *AzureProvider) *azureIaCServer {
 // sdk.ServeIaCPlugin; the SDK auto-registers every typed gRPC service the
 // server satisfies via Go type-assertion at plugin startup.
 func NewIaCServer() *azureIaCServer {
-	return newAzureIaCServer(New(ProviderVersion))
+	return newAzureIaCServer(New(Version))
 }
 
 // Compile-time guards: every typed server interface this Azure plugin advertises
