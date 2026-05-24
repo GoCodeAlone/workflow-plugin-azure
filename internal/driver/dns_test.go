@@ -10,9 +10,11 @@ import (
 )
 
 type mockDNSClient struct {
-	createFn func(ctx context.Context, rg, zoneName string, zone armdns.Zone) (armdns.Zone, error)
-	getFn    func(ctx context.Context, rg, zoneName string) (armdns.Zone, error)
-	deleteFn func(ctx context.Context, rg, zoneName string) error
+	createFn       func(ctx context.Context, rg, zoneName string, zone armdns.Zone) (armdns.Zone, error)
+	getFn          func(ctx context.Context, rg, zoneName string) (armdns.Zone, error)
+	deleteFn       func(ctx context.Context, rg, zoneName string) error
+	listRecordsFn  func(ctx context.Context, rg, zoneName string) ([]*armdns.RecordSet, error)
+	upsertRecordFn func(ctx context.Context, rg, zoneName, recordName string, recordType armdns.RecordType, record armdns.RecordSet) (armdns.RecordSet, error)
 }
 
 func (m *mockDNSClient) CreateOrUpdate(ctx context.Context, rg, zoneName string, zone armdns.Zone) (armdns.Zone, error) {
@@ -25,6 +27,17 @@ func (m *mockDNSClient) Get(ctx context.Context, rg, zoneName string) (armdns.Zo
 
 func (m *mockDNSClient) Delete(ctx context.Context, rg, zoneName string) error {
 	return m.deleteFn(ctx, rg, zoneName)
+}
+
+func (m *mockDNSClient) ListRecordSets(ctx context.Context, rg, zoneName string) ([]*armdns.RecordSet, error) {
+	if m.listRecordsFn == nil {
+		return nil, nil
+	}
+	return m.listRecordsFn(ctx, rg, zoneName)
+}
+
+func (m *mockDNSClient) CreateOrUpdateRecordSet(ctx context.Context, rg, zoneName, recordName string, recordType armdns.RecordType, record armdns.RecordSet) (armdns.RecordSet, error) {
+	return m.upsertRecordFn(ctx, rg, zoneName, recordName, recordType, record)
 }
 
 func TestDNSDriver_Create(t *testing.T) {
@@ -71,6 +84,26 @@ func TestDNSDriver_Read(t *testing.T) {
 				},
 			}, nil
 		},
+		listRecordsFn: func(_ context.Context, _, zoneName string) ([]*armdns.RecordSet, error) {
+			return []*armdns.RecordSet{
+				{
+					Name: str("@"),
+					Type: str("Microsoft.Network/dnszones/A"),
+					Properties: &armdns.RecordSetProperties{
+						TTL:      ptrOf(int64(300)),
+						ARecords: []*armdns.ARecord{{IPv4Address: str("203.0.113.10")}},
+					},
+				},
+				{
+					Name: str("@"),
+					Type: str("Microsoft.Network/dnszones/MX"),
+					Properties: &armdns.RecordSetProperties{
+						TTL:       ptrOf(int64(3600)),
+						MxRecords: []*armdns.MxRecord{{Preference: ptrOf(int32(10)), Exchange: str("aspmx.l.google.com.")}},
+					},
+				},
+			}, nil
+		},
 	}
 
 	drv := NewDNSDriver("rg", "global", client)
@@ -84,8 +117,21 @@ func TestDNSDriver_Read(t *testing.T) {
 	if out.Outputs["domain"] != "example.com" {
 		t.Fatalf("domain = %v, want example.com", out.Outputs["domain"])
 	}
-	if out.Outputs["record_count"] != int64(3) {
-		t.Fatalf("record_count = %v, want 3", out.Outputs["record_count"])
+	if out.Outputs["record_count"] != 2 {
+		t.Fatalf("record_count = %v, want 2", out.Outputs["record_count"])
+	}
+	records, ok := out.Outputs["records"].([]map[string]any)
+	if !ok || len(records) != 2 {
+		t.Fatalf("records = %#v, want two normalized record sets", out.Outputs["records"])
+	}
+	if records[0]["type"] != "A" || records[0]["name"] != "@" {
+		t.Fatalf("first record = %#v, want apex A", records[0])
+	}
+	if values, ok := records[0]["values"].([]string); !ok || len(values) != 1 || values[0] != "203.0.113.10" {
+		t.Fatalf("first record values = %#v, want A value", records[0]["values"])
+	}
+	if mxValues, ok := records[1]["values"].([]map[string]any); !ok || len(mxValues) != 1 || mxValues[0]["exchange"] != "aspmx.l.google.com." {
+		t.Fatalf("mx record values = %#v, want normalized MX value", records[1]["values"])
 	}
 	if out.Outputs["zone_type"] != "Public" {
 		t.Fatalf("zone_type = %v, want Public", out.Outputs["zone_type"])
@@ -100,6 +146,50 @@ func TestDNSDriver_Read(t *testing.T) {
 	nameServers, ok := authority["name_servers"].([]string)
 	if !ok || len(nameServers) != 2 || nameServers[0] != "ns1-01.azure-dns.com." {
 		t.Fatalf("authority.name_servers = %#v, want Azure DNS nameservers", authority["name_servers"])
+	}
+}
+
+func TestDNSDriver_Create_UpsertsConfiguredRecords(t *testing.T) {
+	zoneType := armdns.ZoneTypePublic
+	var upserts []string
+	client := &mockDNSClient{
+		createFn: func(_ context.Context, _, zoneName string, _ armdns.Zone) (armdns.Zone, error) {
+			return armdns.Zone{
+				ID:   str("/subscriptions/sub/resourceGroups/rg/providers/Microsoft.Network/dnszones/" + zoneName),
+				Name: str(zoneName),
+				Properties: &armdns.ZoneProperties{
+					ZoneType: &zoneType,
+				},
+			}, nil
+		},
+		upsertRecordFn: func(_ context.Context, _, zoneName, recordName string, recordType armdns.RecordType, record armdns.RecordSet) (armdns.RecordSet, error) {
+			upserts = append(upserts, zoneName+"/"+recordName+"/"+string(recordType))
+			if record.Properties == nil || record.Properties.TTL == nil {
+				t.Fatalf("upserted record missing TTL: %#v", record)
+			}
+			return record, nil
+		},
+	}
+
+	drv := NewDNSDriver("rg", "global", client)
+	_, err := drv.Create(context.Background(), interfaces.ResourceSpec{
+		Name: "example.com",
+		Type: "infra.dns",
+		Config: map[string]any{
+			"records": []any{
+				map[string]any{"name": "@", "type": "A", "ttl": 300, "values": []any{"203.0.113.10"}},
+				map[string]any{"name": "@", "type": "MX", "ttl": 3600, "values": []any{map[string]any{"preference": 10, "exchange": "aspmx.l.google.com."}}},
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	if len(upserts) != 2 {
+		t.Fatalf("upserts = %#v, want two record upserts", upserts)
+	}
+	if upserts[0] != "example.com/@/A" || upserts[1] != "example.com/@/MX" {
+		t.Fatalf("upserts = %#v, want apex A and MX", upserts)
 	}
 }
 
