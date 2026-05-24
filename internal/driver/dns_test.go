@@ -58,10 +58,17 @@ func TestDNSDriver_Create(t *testing.T) {
 }
 
 func TestDNSDriver_Read(t *testing.T) {
+	zoneType := armdns.ZoneTypePublic
 	client := &mockDNSClient{
 		getFn: func(_ context.Context, _, zoneName string) (armdns.Zone, error) {
 			return armdns.Zone{
-				ID: str("/subscriptions/sub/rg/" + zoneName),
+				ID:   str("/subscriptions/sub/rg/" + zoneName),
+				Name: str(zoneName),
+				Properties: &armdns.ZoneProperties{
+					NameServers:        []*string{str("ns1-01.azure-dns.com."), str("ns2-01.azure-dns.net.")},
+					NumberOfRecordSets: ptrOf(int64(3)),
+					ZoneType:           &zoneType,
+				},
 			}, nil
 		},
 	}
@@ -73,6 +80,26 @@ func TestDNSDriver_Read(t *testing.T) {
 	}
 	if out.Status != "active" {
 		t.Errorf("status = %q, want active", out.Status)
+	}
+	if out.Outputs["domain"] != "example.com" {
+		t.Fatalf("domain = %v, want example.com", out.Outputs["domain"])
+	}
+	if out.Outputs["record_count"] != int64(3) {
+		t.Fatalf("record_count = %v, want 3", out.Outputs["record_count"])
+	}
+	if out.Outputs["zone_type"] != "Public" {
+		t.Fatalf("zone_type = %v, want Public", out.Outputs["zone_type"])
+	}
+	authority, ok := out.Outputs["authority"].(map[string]any)
+	if !ok {
+		t.Fatalf("authority = %T, want map[string]any", out.Outputs["authority"])
+	}
+	if got := authority["dns_host"]; got != "Azure DNS" {
+		t.Fatalf("authority.dns_host = %v, want Azure DNS", got)
+	}
+	nameServers, ok := authority["name_servers"].([]string)
+	if !ok || len(nameServers) != 2 || nameServers[0] != "ns1-01.azure-dns.com." {
+		t.Fatalf("authority.name_servers = %#v, want Azure DNS nameservers", authority["name_servers"])
 	}
 }
 

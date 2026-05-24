@@ -123,10 +123,26 @@ func (d *DNSDriver) Scale(_ context.Context, _ interfaces.ResourceRef, _ int) (*
 
 func dnsToOutput(name string, z armdns.Zone) *interfaces.ResourceOutput {
 	outputs := map[string]any{}
+	if z.Name != nil {
+		outputs["domain"] = *z.Name
+		outputs["zone_name"] = *z.Name
+	}
 	if z.Properties != nil {
 		if z.Properties.NumberOfRecordSets != nil {
 			outputs["record_sets"] = *z.Properties.NumberOfRecordSets
+			outputs["record_count"] = *z.Properties.NumberOfRecordSets
 		}
+		if z.Properties.ZoneType != nil {
+			outputs["zone_type"] = string(*z.Properties.ZoneType)
+		}
+		if len(z.Properties.NameServers) > 0 {
+			outputs["name_servers"] = azureNameServers(z.Properties.NameServers)
+		}
+	}
+	outputs["authority"] = map[string]any{
+		"role":         "target_authoritative_dns",
+		"dns_host":     "Azure DNS",
+		"name_servers": azureOutputNameServers(outputs),
 	}
 	status := "active"
 	if z.ID == nil {
@@ -139,4 +155,19 @@ func dnsToOutput(name string, z armdns.Zone) *interfaces.ResourceOutput {
 		Outputs:    outputs,
 		Status:     status,
 	}
+}
+
+func azureNameServers(values []*string) []string {
+	out := make([]string, 0, len(values))
+	for _, value := range values {
+		if value != nil {
+			out = append(out, *value)
+		}
+	}
+	return out
+}
+
+func azureOutputNameServers(outputs map[string]any) []string {
+	values, _ := outputs["name_servers"].([]string)
+	return append([]string(nil), values...)
 }
