@@ -14,7 +14,7 @@ import (
 
 // Version is the current plugin version. It is overridden at build time
 // by GoReleaser via -X github.com/GoCodeAlone/workflow-plugin-azure/internal.Version=...
-var Version = "dev"
+var Version = "0.0.0"
 
 // AzureProvider implements interfaces.IaCProvider for Microsoft Azure.
 type AzureProvider struct {
