@@ -63,6 +63,10 @@ func NewAll(subscriptionID, resourceGroup, location, storageAccount string, cred
 	if err != nil {
 		return nil, fmt.Errorf("dns client: %w", err)
 	}
+	dnsRecordsRaw, err := armdns.NewRecordSetsClient(subscriptionID, cred, nil)
+	if err != nil {
+		return nil, fmt.Errorf("dns records client: %w", err)
+	}
 
 	acrRaw, err := armcontainerregistry.NewRegistriesClient(subscriptionID, cred, nil)
 	if err != nil {
@@ -102,7 +106,7 @@ func NewAll(subscriptionID, resourceGroup, location, storageAccount string, cred
 		"infra.cache":             NewRedisDriver(resourceGroup, location, &realRedisClient{inner: redisRaw}),
 		"infra.vpc":               NewVNetDriver(resourceGroup, location, &realVNetClient{inner: vnetRaw}),
 		"infra.load_balancer":     NewLBDriver(resourceGroup, location, &realLBClient{inner: lbRaw}),
-		"infra.dns":               NewDNSDriver(resourceGroup, location, &realDNSClient{inner: dnsRaw}),
+		"infra.dns":               NewDNSDriver(resourceGroup, location, &realDNSClient{zones: dnsRaw, records: dnsRecordsRaw}),
 		"infra.registry":          NewACRDriver(resourceGroup, location, &realACRClient{inner: acrRaw}),
 		"infra.api_gateway":       NewAPIMDriver(resourceGroup, location, &realAPIMClient{inner: apimRaw}),
 		"infra.firewall":          NewNSGDriver(resourceGroup, location, &realNSGClient{inner: nsgRaw}),
