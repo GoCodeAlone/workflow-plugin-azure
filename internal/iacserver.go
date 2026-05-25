@@ -42,6 +42,7 @@ type azureIaCServer struct {
 	pb.UnimplementedIaCProviderMigrationRepairerServer
 	pb.UnimplementedIaCProviderValidatorServer
 	pb.UnimplementedIaCProviderDriftConfigDetectorServer
+	pb.UnimplementedIaCProviderRequirementMapperServer
 	pb.UnimplementedResourceDriverServer
 	pb.UnimplementedIaCStateBackendServer
 
@@ -78,8 +79,9 @@ var (
 	// IaCProviderDriftDetectorServer requires BOTH DetectDrift AND DetectDriftWithSpecs.
 	// Both are implemented below: DetectDrift is the real check; DetectDriftWithSpecs
 	// delegates to DetectDrift (existence-only behavior; ignores the specs map).
-	_ pb.IaCProviderDriftDetectorServer = (*azureIaCServer)(nil)
-	_ pb.ResourceDriverServer           = (*azureIaCServer)(nil)
+	_ pb.IaCProviderDriftDetectorServer     = (*azureIaCServer)(nil)
+	_ pb.IaCProviderRequirementMapperServer = (*azureIaCServer)(nil)
+	_ pb.ResourceDriverServer               = (*azureIaCServer)(nil)
 	// azureIaCServer also SERVES the typed IaC state-backend contract
 	// (azure_blob backend). The SDK serve hook auto-registers this via
 	// type-assertion at plugin startup — see cmd/workflow-plugin-azure/main.go.

@@ -67,6 +67,81 @@ func TestACIDriver_Create(t *testing.T) {
 	}
 }
 
+func TestACIDriver_Create_CollectorConfig(t *testing.T) {
+	var created armcontainerinstance.ContainerGroup
+	client := &mockACIClient{
+		createFn: func(_ context.Context, _, name string, cg armcontainerinstance.ContainerGroup) (armcontainerinstance.ContainerGroup, error) {
+			created = cg
+			provisioningState := "Succeeded"
+			image := "otel/opentelemetry-collector-contrib:latest"
+			return armcontainerinstance.ContainerGroup{
+				ID: str("/subscriptions/sub/resourceGroups/rg/providers/Microsoft.ContainerInstance/containerGroups/" + name),
+				Properties: &armcontainerinstance.ContainerGroupPropertiesProperties{
+					ProvisioningState: &provisioningState,
+					Containers: []*armcontainerinstance.Container{{
+						Name:       &name,
+						Properties: &armcontainerinstance.ContainerProperties{Image: &image},
+					}},
+				},
+			}, nil
+		},
+	}
+
+	drv := NewACIDriver("rg", "eastus", client)
+	_, err := drv.Create(context.Background(), interfaces.ResourceSpec{
+		Name: "observability-collector",
+		Type: "infra.container_service",
+		Config: map[string]any{
+			"image":   "otel/opentelemetry-collector-contrib:latest",
+			"command": []any{"otelcol-contrib", "--config=env:OTELCOL_CONFIG"},
+			"ports": []any{
+				map[string]any{"port": 4317, "public": false},
+				map[string]any{"port": 4318, "public": false},
+				map[string]any{"port": 9464, "public": false},
+				map[string]any{"port": 0, "public": false},
+				map[string]any{"port": 70000, "public": false},
+			},
+			"env_vars": map[string]any{
+				"OTELCOL_CONFIG":               "receivers: {}",
+				"OTEL_EXPORTER_OTLP_ENDPOINT":  "${vars.otel_exporter_otlp_endpoint}",
+				"LOKI_ENDPOINT":                "${vars.loki_endpoint}",
+				"GRAFANA_OTLP_ENDPOINT":        "${vars.grafana_otlp_endpoint}",
+				"NON_STRING_SHOULD_BE_IGNORED": 42,
+			},
+			"env_vars_secret": map[string]any{
+				"DD_API_KEY":             "${secrets.datadog_api_key}",
+				"GRAFANA_OTLP_HEADERS":   "${secrets.grafana_otlp_headers}",
+				"NON_STRING_SECRET_SKIP": 42,
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	if created.Properties == nil || len(created.Properties.Containers) != 1 {
+		t.Fatalf("created container group missing container: %+v", created.Properties)
+	}
+	container := created.Properties.Containers[0]
+	if container.Properties == nil {
+		t.Fatal("created container missing properties")
+	}
+	if got := ptrStrings(container.Properties.Command); len(got) != 2 || got[0] != "otelcol-contrib" || got[1] != "--config=env:OTELCOL_CONFIG" {
+		t.Fatalf("command = %v, want collector command", got)
+	}
+	if got := envValue(container.Properties.EnvironmentVariables, "OTELCOL_CONFIG"); got != "receivers: {}" {
+		t.Fatalf("OTELCOL_CONFIG = %q, want receivers config", got)
+	}
+	if got := secureEnvValue(container.Properties.EnvironmentVariables, "DD_API_KEY"); got != "${secrets.datadog_api_key}" {
+		t.Fatalf("DD_API_KEY secure value = %q, want secret reference", got)
+	}
+	if got := containerPorts(container.Properties.Ports); len(got) != 3 || got[0] != 4317 || got[1] != 4318 || got[2] != 9464 {
+		t.Fatalf("container ports = %v, want [4317 4318 9464]", got)
+	}
+	if created.Properties.IPAddress != nil {
+		t.Fatalf("IPAddress = %+v, want none when all ports are private", created.Properties.IPAddress)
+	}
+}
+
 func TestACIDriver_Read(t *testing.T) {
 	provisioningState := "Running"
 	client := &mockACIClient{
@@ -271,4 +346,42 @@ func TestACIDriver_Scale_NotSupported(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for Scale")
 	}
+}
+
+func ptrStrings(values []*string) []string {
+	out := make([]string, 0, len(values))
+	for _, value := range values {
+		if value != nil {
+			out = append(out, *value)
+		}
+	}
+	return out
+}
+
+func envValue(values []*armcontainerinstance.EnvironmentVariable, name string) string {
+	for _, value := range values {
+		if value != nil && value.Name != nil && *value.Name == name && value.Value != nil {
+			return *value.Value
+		}
+	}
+	return ""
+}
+
+func secureEnvValue(values []*armcontainerinstance.EnvironmentVariable, name string) string {
+	for _, value := range values {
+		if value != nil && value.Name != nil && *value.Name == name && value.SecureValue != nil {
+			return *value.SecureValue
+		}
+	}
+	return ""
+}
+
+func containerPorts(values []*armcontainerinstance.ContainerPort) []int32 {
+	out := make([]int32, 0, len(values))
+	for _, value := range values {
+		if value != nil && value.Port != nil {
+			out = append(out, *value.Port)
+		}
+	}
+	return out
 }

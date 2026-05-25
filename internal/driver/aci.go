@@ -3,6 +3,7 @@ package driver
 import (
 	"context"
 	"fmt"
+	"sort"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/runtime"
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/containerinstance/armcontainerinstance/v2"
@@ -79,7 +80,10 @@ func (d *ACIDriver) Create(ctx context.Context, spec interfaces.ResourceSpec) (*
 				{
 					Name: str(spec.Name),
 					Properties: &armcontainerinstance.ContainerProperties{
-						Image: str(image),
+						Image:                str(image),
+						Command:              aciCommand(spec.Config),
+						EnvironmentVariables: aciEnvironmentVariables(spec.Config),
+						Ports:                aciContainerPorts(spec.Config),
 						Resources: &armcontainerinstance.ResourceRequirements{
 							Requests: &armcontainerinstance.ResourceRequests{
 								CPU:        &cpu,
@@ -89,6 +93,7 @@ func (d *ACIDriver) Create(ctx context.Context, spec interfaces.ResourceSpec) (*
 					},
 				},
 			},
+			IPAddress:     aciIPAddress(spec.Config),
 			OSType:        ptrOf(armcontainerinstance.OperatingSystemTypesLinux),
 			RestartPolicy: ptrOf(armcontainerinstance.ContainerGroupRestartPolicyAlways),
 		},
@@ -165,3 +170,171 @@ func aciToOutput(name string, cg armcontainerinstance.ContainerGroup) *interface
 }
 
 func ptrOf[T any](v T) *T { return &v }
+
+func aciCommand(config map[string]any) []*string {
+	raw := configList(config, "command")
+	out := make([]*string, 0, len(raw))
+	for _, value := range raw {
+		if strValue, ok := value.(string); ok && strValue != "" {
+			out = append(out, str(strValue))
+		}
+	}
+	return out
+}
+
+func aciEnvironmentVariables(config map[string]any) []*armcontainerinstance.EnvironmentVariable {
+	vars := make([]*armcontainerinstance.EnvironmentVariable, 0)
+	vars = append(vars, aciPlainEnvironmentVariables(configMap(config, "env_vars"))...)
+	vars = append(vars, aciSecureEnvironmentVariables(configMap(config, "env_vars_secret"))...)
+	return vars
+}
+
+func aciPlainEnvironmentVariables(values map[string]any) []*armcontainerinstance.EnvironmentVariable {
+	keys := sortedConfigMapKeys(values)
+	out := make([]*armcontainerinstance.EnvironmentVariable, 0, len(keys))
+	for _, key := range keys {
+		value, ok := values[key].(string)
+		if !ok {
+			continue
+		}
+		out = append(out, &armcontainerinstance.EnvironmentVariable{
+			Name:  str(key),
+			Value: str(value),
+		})
+	}
+	return out
+}
+
+func aciSecureEnvironmentVariables(values map[string]any) []*armcontainerinstance.EnvironmentVariable {
+	keys := sortedConfigMapKeys(values)
+	out := make([]*armcontainerinstance.EnvironmentVariable, 0, len(keys))
+	for _, key := range keys {
+		value, ok := values[key].(string)
+		if !ok {
+			continue
+		}
+		out = append(out, &armcontainerinstance.EnvironmentVariable{
+			Name:        str(key),
+			SecureValue: str(value),
+		})
+	}
+	return out
+}
+
+func aciContainerPorts(config map[string]any) []*armcontainerinstance.ContainerPort {
+	portConfigs := aciPortConfigs(config)
+	out := make([]*armcontainerinstance.ContainerPort, 0, len(portConfigs))
+	for _, port := range portConfigs {
+		portValue := port.port
+		out = append(out, &armcontainerinstance.ContainerPort{
+			Port:     &portValue,
+			Protocol: ptrOf(armcontainerinstance.ContainerNetworkProtocolTCP),
+		})
+	}
+	return out
+}
+
+func aciIPAddress(config map[string]any) *armcontainerinstance.IPAddress {
+	portConfigs := aciPortConfigs(config)
+	var publicPorts []*armcontainerinstance.Port
+	for _, port := range portConfigs {
+		if !port.public {
+			continue
+		}
+		portValue := port.port
+		publicPorts = append(publicPorts, &armcontainerinstance.Port{
+			Port:     &portValue,
+			Protocol: ptrOf(armcontainerinstance.ContainerGroupNetworkProtocolTCP),
+		})
+	}
+	if len(publicPorts) == 0 {
+		return nil
+	}
+	return &armcontainerinstance.IPAddress{
+		Type:  ptrOf(armcontainerinstance.ContainerGroupIPAddressTypePublic),
+		Ports: publicPorts,
+	}
+}
+
+type aciPortConfig struct {
+	port   int32
+	public bool
+}
+
+func aciPortConfigs(config map[string]any) []aciPortConfig {
+	raw := configList(config, "ports")
+	out := make([]aciPortConfig, 0, len(raw))
+	for _, item := range raw {
+		values, ok := item.(map[string]any)
+		if !ok {
+			continue
+		}
+		port, ok := aciPortNumber(values["port"])
+		if !ok {
+			continue
+		}
+		out = append(out, aciPortConfig{
+			port:   port,
+			public: boolConfigValue(values["public"]),
+		})
+	}
+	return out
+}
+
+func aciPortNumber(value any) (int32, bool) {
+	const maxPort = 65535
+	switch typed := value.(type) {
+	case int:
+		if typed > 0 && typed <= maxPort {
+			return int32(typed), true
+		}
+	case int32:
+		if typed > 0 && typed <= maxPort {
+			return typed, true
+		}
+	case int64:
+		if typed > 0 && typed <= maxPort {
+			return int32(typed), true
+		}
+	case float64:
+		if typed > 0 && typed <= maxPort {
+			return int32(typed), true
+		}
+	}
+	return 0, false
+}
+
+func configMap(config map[string]any, key string) map[string]any {
+	switch values := config[key].(type) {
+	case map[string]any:
+		return values
+	case map[string]string:
+		out := make(map[string]any, len(values))
+		for name, value := range values {
+			out[name] = value
+		}
+		return out
+	default:
+		return nil
+	}
+}
+
+func sortedConfigMapKeys(values map[string]any) []string {
+	keys := make([]string, 0, len(values))
+	for key := range values {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	return keys
+}
+
+func boolConfigValue(value any) bool {
+	switch typed := value.(type) {
+	case bool:
+		return typed
+	case string:
+		return typed == "true"
+	default:
+		return false
+	}
+}
