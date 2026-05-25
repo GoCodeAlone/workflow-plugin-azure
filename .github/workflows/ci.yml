@@ -10,8 +10,12 @@ env:
   GONOSUMDB: github.com/GoCodeAlone/*
   GOPRIVATE: github.com/GoCodeAlone/*
 
+permissions:
+  contents: read
+
 jobs:
   test:
+    name: Build & Test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -22,3 +26,18 @@ jobs:
         run: git config --global url."https://${{ secrets.RELEASES_TOKEN }}@github.com/".insteadOf "https://github.com/"
       - run: go build ./...
       - run: go test ./... -v -race -count=1
+
+  wfctl-strict-contracts:
+    name: Strict Contract Validation
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Configure git for private modules
+        run: git config --global url."https://${{ secrets.RELEASES_TOKEN }}@github.com/".insteadOf "https://github.com/"
+      - name: Validate strict plugin contracts
+        run: go run github.com/GoCodeAlone/workflow/cmd/wfctl@v0.64.3 plugin validate --file plugin.json --strict-contracts
