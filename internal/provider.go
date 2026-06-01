@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
 	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 	"github.com/GoCodeAlone/workflow-plugin-azure/internal/driver"
 	"github.com/GoCodeAlone/workflow/interfaces"
@@ -23,6 +24,7 @@ type AzureProvider struct {
 	subscriptionID string
 	resourceGroup  string
 	location       string
+	credential     azcore.TokenCredential
 	drivers        map[string]interfaces.ResourceDriver
 }
 
@@ -77,8 +79,17 @@ func (p *AzureProvider) Initialize(ctx context.Context, config map[string]any) e
 	if err != nil {
 		return fmt.Errorf("azure: init drivers: %w", err)
 	}
+	p.credential = cred
 	p.drivers = drivers
 	return nil
+}
+
+// SubscriptionSnapshot returns the initialized subscription and credential for
+// typed services that need to call Azure APIs outside the resource-driver path.
+func (p *AzureProvider) SubscriptionSnapshot() (string, azcore.TokenCredential, bool) {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+	return p.subscriptionID, p.credential, p.subscriptionID != "" && p.credential != nil
 }
 
 // Capabilities returns the resource types this provider supports.

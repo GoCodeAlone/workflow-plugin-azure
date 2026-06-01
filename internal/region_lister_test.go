@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"sort"
 	"testing"
 
 	pb "github.com/GoCodeAlone/workflow/plugin/external/proto"
@@ -18,7 +19,8 @@ func TestAzureIaCServer_ListRegions(t *testing.T) {
 		t.Fatalf("ListRegions: %v", err)
 	}
 	got := regionNames(resp.GetRegions())
-	want := []string{"eastus", "southeastasia", "westeurope", "westus2"}
+	want := append([]string(nil), azureFallbackRegions...)
+	sort.Strings(want)
 	if !sameStrings(got, want) {
 		t.Fatalf("regions = %v, want %v", got, want)
 	}
@@ -35,18 +37,24 @@ func TestAzureIaCServer_RegistersRegionLister(t *testing.T) {
 }
 
 func TestPluginManifestAdvertisesRegionLister(t *testing.T) {
-	data, err := os.ReadFile(filepath.Join(hostConformanceRepoRoot(t), "plugin.json"))
+	assertManifestAdvertisesRegionLister(t, filepath.Join(hostConformanceRepoRoot(t), "plugin.json"))
+	assertManifestAdvertisesRegionLister(t, filepath.Join(hostConformanceRepoRoot(t), "cmd", "workflow-plugin-azure", "plugin.json"))
+}
+
+func assertManifestAdvertisesRegionLister(t *testing.T, path string) {
+	t.Helper()
+	data, err := os.ReadFile(path)
 	if err != nil {
-		t.Fatalf("read plugin.json: %v", err)
+		t.Fatalf("read %s: %v", path, err)
 	}
 	var manifest struct {
 		IaCServices []string `json:"iacServices"`
 	}
 	if err := json.Unmarshal(data, &manifest); err != nil {
-		t.Fatalf("parse plugin.json: %v", err)
+		t.Fatalf("parse %s: %v", path, err)
 	}
 	if !containsString(manifest.IaCServices, pb.IaCProviderRegionLister_ServiceDesc.ServiceName) {
-		t.Fatalf("iacServices missing %s: %v", pb.IaCProviderRegionLister_ServiceDesc.ServiceName, manifest.IaCServices)
+		t.Fatalf("%s iacServices missing %s: %v", path, pb.IaCProviderRegionLister_ServiceDesc.ServiceName, manifest.IaCServices)
 	}
 }
 
