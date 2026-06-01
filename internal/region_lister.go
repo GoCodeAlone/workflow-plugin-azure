@@ -72,10 +72,9 @@ func (s *azureIaCServer) ListRegions(ctx context.Context, _ *pb.ListRegionsReque
 		subscriptionID, cred, ok := s.provider.SubscriptionSnapshot()
 		if ok {
 			regions, err := listAzureRegions(ctx, subscriptionID, cred)
-			if err != nil {
-				return nil, err
+			if err == nil {
+				return providerRegionsResponse(regions), nil
 			}
-			return providerRegionsResponse(regions), nil
 		}
 	}
 	return providerRegionsResponse(regionEntries(azureFallbackRegions, nil)), nil
