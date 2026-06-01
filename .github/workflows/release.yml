@@ -77,7 +77,7 @@ jobs:
             wfctl plugin validate-contract --for-publish --tag "${{ inputs.tag || github.ref_name }}" --release-dir . .
           fi
 
-  notify-registry:
+  publish-release:
     if: startsWith(github.ref, 'refs/tags/v')
     needs: [release]
     runs-on: ubuntu-latest
@@ -110,7 +110,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-    needs: release
+    needs: publish-release
     if: >-
       !github.event.deleted
       && !contains(github.ref_name, '-')
