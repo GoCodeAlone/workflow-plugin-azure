@@ -111,7 +111,7 @@ func NewAll(subscriptionID, resourceGroup, location, storageAccount string, cred
 		"infra.api_gateway":       NewAPIMDriver(resourceGroup, location, &realAPIMClient{inner: apimRaw}),
 		"infra.firewall":          NewNSGDriver(resourceGroup, location, &realNSGClient{inner: nsgRaw}),
 		"infra.iam_role":          NewMSIDriver(resourceGroup, location, &realMSIClient{inner: msiRaw}),
-		"infra.storage":           NewBlobDriver(resourceGroup, location, &realBlobClient{inner: blobRaw}),
+		"infra.storage":           NewBlobDriver(subscriptionID, resourceGroup, location, storageAccount, &realBlobClient{inner: blobRaw}),
 		"infra.certificate":       NewCertDriver(resourceGroup, location, &realCertClient{inner: certRaw}),
 	}, nil
 }
