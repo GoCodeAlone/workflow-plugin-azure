@@ -3,6 +3,7 @@ package driver
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob"
 	"github.com/GoCodeAlone/workflow/interfaces"
@@ -45,9 +46,11 @@ func (c *realBlobClient) DeleteContainer(ctx context.Context, containerName stri
 
 // BlobDriver manages Azure Blob Storage containers (infra.storage).
 type BlobDriver struct {
-	resourceGroup string
-	location      string
-	client        BlobClientInterface
+	subscriptionID string
+	resourceGroup  string
+	location       string
+	storageAccount string
+	client         BlobClientInterface
 }
 
 var _ interfaces.ResourceDriver = (*BlobDriver)(nil)
@@ -55,8 +58,14 @@ var _ interfaces.ResourceDriver = (*BlobDriver)(nil)
 // SensitiveKeys returns output keys whose values should be masked in logs and plan output.
 func (d *BlobDriver) SensitiveKeys() []string { return nil }
 
-func NewBlobDriver(resourceGroup, location string, client BlobClientInterface) *BlobDriver {
-	return &BlobDriver{resourceGroup: resourceGroup, location: location, client: client}
+func NewBlobDriver(subscriptionID, resourceGroup, location, storageAccount string, client BlobClientInterface) *BlobDriver {
+	return &BlobDriver{
+		subscriptionID: subscriptionID,
+		resourceGroup:  resourceGroup,
+		location:       location,
+		storageAccount: storageAccount,
+		client:         client,
+	}
 }
 
 func (d *BlobDriver) Create(ctx context.Context, spec interfaces.ResourceSpec) (*interfaces.ResourceOutput, error) {
@@ -68,17 +77,14 @@ func (d *BlobDriver) Create(ctx context.Context, spec interfaces.ResourceSpec) (
 	return &interfaces.ResourceOutput{
 		Name:       spec.Name,
 		Type:       "infra.storage",
-		ProviderID: containerName,
+		ProviderID: d.containerARMID(containerName),
 		Outputs:    map[string]any{"container_name": containerName},
 		Status:     "active",
 	}, nil
 }
 
 func (d *BlobDriver) Read(ctx context.Context, ref interfaces.ResourceRef) (*interfaces.ResourceOutput, error) {
-	containerName := ref.Name
-	if ref.ProviderID != "" {
-		containerName = ref.ProviderID
-	}
+	containerName := d.containerNameFromRef(ref)
 
 	props, err := d.client.GetContainerProperties(ctx, containerName)
 	if err != nil {
@@ -91,7 +97,7 @@ func (d *BlobDriver) Read(ctx context.Context, ref interfaces.ResourceRef) (*int
 	return &interfaces.ResourceOutput{
 		Name:       ref.Name,
 		Type:       "infra.storage",
-		ProviderID: containerName,
+		ProviderID: d.containerARMID(containerName),
 		Outputs:    outputs,
 		Status:     "active",
 	}, nil
@@ -102,10 +108,7 @@ func (d *BlobDriver) Update(ctx context.Context, ref interfaces.ResourceRef, spe
 }
 
 func (d *BlobDriver) Delete(ctx context.Context, ref interfaces.ResourceRef) error {
-	containerName := ref.Name
-	if ref.ProviderID != "" {
-		containerName = ref.ProviderID
-	}
+	containerName := d.containerNameFromRef(ref)
 	return d.client.DeleteContainer(ctx, containerName)
 }
 
@@ -126,4 +129,28 @@ func (d *BlobDriver) HealthCheck(ctx context.Context, ref interfaces.ResourceRef
 
 func (d *BlobDriver) Scale(_ context.Context, _ interfaces.ResourceRef, _ int) (*interfaces.ResourceOutput, error) {
 	return nil, fmt.Errorf("blob: scale not supported")
+}
+
+func (d *BlobDriver) containerARMID(containerName string) string {
+	if d.subscriptionID == "" || d.resourceGroup == "" || d.storageAccount == "" {
+		return containerName
+	}
+	return fmt.Sprintf(
+		"/subscriptions/%s/resourceGroups/%s/providers/Microsoft.Storage/storageAccounts/%s/blobServices/default/containers/%s",
+		d.subscriptionID,
+		d.resourceGroup,
+		d.storageAccount,
+		containerName,
+	)
+}
+
+func (d *BlobDriver) containerNameFromRef(ref interfaces.ResourceRef) string {
+	if ref.ProviderID == "" {
+		return ref.Name
+	}
+	const marker = "/blobServices/default/containers/"
+	if idx := strings.LastIndex(ref.ProviderID, marker); idx >= 0 {
+		return ref.ProviderID[idx+len(marker):]
+	}
+	return ref.ProviderID
 }

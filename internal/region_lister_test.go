@@ -36,9 +36,24 @@ func TestAzureIaCServer_RegistersRegionLister(t *testing.T) {
 	}
 }
 
+func TestAzureIaCServer_RegistersOwnership(t *testing.T) {
+	server := grpc.NewServer()
+	if err := sdk.RegisterAllIaCProviderServices(server, NewIaCServer()); err != nil {
+		t.Fatalf("RegisterAllIaCProviderServices: %v", err)
+	}
+	if _, ok := server.GetServiceInfo()[pb.IaCProviderOwnership_ServiceDesc.ServiceName]; !ok {
+		t.Fatalf("registered services missing %s", pb.IaCProviderOwnership_ServiceDesc.ServiceName)
+	}
+}
+
 func TestPluginManifestAdvertisesRegionLister(t *testing.T) {
 	assertManifestAdvertisesRegionLister(t, filepath.Join(hostConformanceRepoRoot(t), "plugin.json"))
 	assertManifestAdvertisesRegionLister(t, filepath.Join(hostConformanceRepoRoot(t), "cmd", "workflow-plugin-azure", "plugin.json"))
+}
+
+func TestPluginManifestAdvertisesOwnership(t *testing.T) {
+	assertManifestAdvertisesOwnership(t, filepath.Join(hostConformanceRepoRoot(t), "plugin.json"))
+	assertManifestAdvertisesOwnership(t, filepath.Join(hostConformanceRepoRoot(t), "cmd", "workflow-plugin-azure", "plugin.json"))
 }
 
 func assertManifestAdvertisesRegionLister(t *testing.T, path string) {
@@ -55,6 +70,23 @@ func assertManifestAdvertisesRegionLister(t *testing.T, path string) {
 	}
 	if !containsString(manifest.IaCServices, pb.IaCProviderRegionLister_ServiceDesc.ServiceName) {
 		t.Fatalf("%s iacServices missing %s: %v", path, pb.IaCProviderRegionLister_ServiceDesc.ServiceName, manifest.IaCServices)
+	}
+}
+
+func assertManifestAdvertisesOwnership(t *testing.T, path string) {
+	t.Helper()
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read %s: %v", path, err)
+	}
+	var manifest struct {
+		IaCServices []string `json:"iacServices"`
+	}
+	if err := json.Unmarshal(data, &manifest); err != nil {
+		t.Fatalf("parse %s: %v", path, err)
+	}
+	if !containsString(manifest.IaCServices, pb.IaCProviderOwnership_ServiceDesc.ServiceName) {
+		t.Fatalf("%s iacServices missing %s: %v", path, pb.IaCProviderOwnership_ServiceDesc.ServiceName, manifest.IaCServices)
 	}
 }
 
