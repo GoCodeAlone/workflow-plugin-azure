@@ -2,6 +2,17 @@
 
 All notable changes to `workflow-plugin-azure` are documented here.
 
+## Unreleased
+
+### Added
+
+- Added `IaCProviderOwnership` support backed by the Azure ARM `workflow-owner`
+  tag for cross-driver ownership discovery and assignment.
+
+### Changed
+
+- Raised `minEngineVersion` to `0.69.1` for the ownership service contract.
+
 ## v2.0.0-rc1 — 2026-05-17
 
 ### Breaking changes (workflow#699)

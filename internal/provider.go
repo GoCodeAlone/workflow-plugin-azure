@@ -9,6 +9,7 @@ import (
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
 	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
+	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/resources/armresources"
 	"github.com/GoCodeAlone/workflow-plugin-azure/internal/driver"
 	"github.com/GoCodeAlone/workflow/interfaces"
 )
@@ -26,6 +27,9 @@ type AzureProvider struct {
 	location       string
 	credential     azcore.TokenCredential
 	drivers        map[string]interfaces.ResourceDriver
+
+	ownershipTags      ownershipTagsClient
+	ownershipResources ownershipResourcesClient
 }
 
 // Ensure AzureProvider satisfies interfaces.IaCProvider.
@@ -75,12 +79,23 @@ func (p *AzureProvider) Initialize(ctx context.Context, config map[string]any) e
 		return fmt.Errorf("azure: credential: %w", err)
 	}
 
+	tagsClient, err := armresources.NewTagsClient(subID, cred, nil)
+	if err != nil {
+		return fmt.Errorf("azure: init ownership tags client: %w", err)
+	}
+	resourcesClient, err := armresources.NewClient(subID, cred, nil)
+	if err != nil {
+		return fmt.Errorf("azure: init ownership resources client: %w", err)
+	}
+
 	drivers, err := driver.NewAll(subID, rg, loc, storageAccount, cred)
 	if err != nil {
 		return fmt.Errorf("azure: init drivers: %w", err)
 	}
 	p.credential = cred
 	p.drivers = drivers
+	p.ownershipTags = &azureOwnershipTagsClient{inner: tagsClient}
+	p.ownershipResources = &azureOwnershipResourcesClient{inner: resourcesClient}
 	return nil
 }
 
@@ -332,5 +347,7 @@ func (p *AzureProvider) Close() error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	p.drivers = make(map[string]interfaces.ResourceDriver)
+	p.ownershipTags = nil
+	p.ownershipResources = nil
 	return nil
 }
