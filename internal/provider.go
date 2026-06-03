@@ -9,6 +9,7 @@ import (
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
 	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
+	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/containerinstance/armcontainerinstance/v2"
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/resources/armresources"
 	"github.com/GoCodeAlone/workflow-plugin-azure/internal/driver"
 	"github.com/GoCodeAlone/workflow/interfaces"
@@ -27,6 +28,7 @@ type AzureProvider struct {
 	location       string
 	credential     azcore.TokenCredential
 	drivers        map[string]interfaces.ResourceDriver
+	runnerClient   azureRunnerClient
 
 	ownershipTags      ownershipTagsClient
 	ownershipResources ownershipResourcesClient
@@ -92,8 +94,17 @@ func (p *AzureProvider) Initialize(ctx context.Context, config map[string]any) e
 	if err != nil {
 		return fmt.Errorf("azure: init drivers: %w", err)
 	}
+	groupsClient, err := armcontainerinstance.NewContainerGroupsClient(subID, cred, nil)
+	if err != nil {
+		return fmt.Errorf("azure: init runner container groups client: %w", err)
+	}
+	containersClient, err := armcontainerinstance.NewContainersClient(subID, cred, nil)
+	if err != nil {
+		return fmt.Errorf("azure: init runner containers client: %w", err)
+	}
 	p.credential = cred
 	p.drivers = drivers
+	p.runnerClient = &realAzureRunnerClient{groups: groupsClient, containers: containersClient}
 	p.ownershipTags = &azureOwnershipTagsClient{inner: tagsClient}
 	p.ownershipResources = &azureOwnershipResourcesClient{inner: resourcesClient}
 	return nil

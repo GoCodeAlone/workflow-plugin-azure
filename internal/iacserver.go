@@ -45,6 +45,7 @@ type azureIaCServer struct {
 	pb.UnimplementedIaCProviderRequirementMapperServer
 	pb.UnimplementedIaCProviderRegionListerServer
 	pb.UnimplementedIaCProviderOwnershipServer
+	pb.UnimplementedIaCProviderRunnerServer
 	pb.UnimplementedResourceDriverServer
 	pb.UnimplementedIaCStateBackendServer
 
@@ -85,6 +86,7 @@ var (
 	_ pb.IaCProviderRequirementMapperServer = (*azureIaCServer)(nil)
 	_ pb.IaCProviderRegionListerServer      = (*azureIaCServer)(nil)
 	_ pb.IaCProviderOwnershipServer         = (*azureIaCServer)(nil)
+	_ pb.IaCProviderRunnerServer            = (*azureIaCServer)(nil)
 	_ pb.ResourceDriverServer               = (*azureIaCServer)(nil)
 	// azureIaCServer also SERVES the typed IaC state-backend contract
 	// (azure_blob backend). The SDK serve hook auto-registers this via
