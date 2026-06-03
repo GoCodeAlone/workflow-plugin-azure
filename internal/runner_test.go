@@ -54,11 +54,11 @@ func TestAzureRunner_RunJobCreatesNeverRestartContainerGroup(t *testing.T) {
 	if err != nil {
 		t.Fatalf("RunJob returned error: %v", err)
 	}
-	if handle.Provider != "azure" || handle.Metadata["container_group"] != "migrate-db" {
+	if handle.Provider != "azure" || !strings.HasPrefix(handle.Metadata["container_group"], "migrate-db-") {
 		t.Fatalf("handle = %+v", handle)
 	}
-	if client.createdRG != "rg" || client.createdName != "migrate-db" {
-		t.Fatalf("created %s/%s, want rg/migrate-db", client.createdRG, client.createdName)
+	if client.createdRG != "rg" || !strings.HasPrefix(client.createdName, "migrate-db-") {
+		t.Fatalf("created %s/%s, want rg/migrate-db-*", client.createdRG, client.createdName)
 	}
 	props := client.createdCG.Properties
 	if props == nil || props.RestartPolicy == nil || *props.RestartPolicy != armcontainerinstance.ContainerGroupRestartPolicyNever {

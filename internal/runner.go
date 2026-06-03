@@ -211,10 +211,12 @@ func azureJobName(name string) string {
 	if name == "" {
 		name = "provider-ephemeral-job"
 	}
-	if len(name) > 63 {
-		name = strings.TrimRight(name[:63], "-")
+	suffix := fmt.Sprintf("-%d", time.Now().UnixNano())
+	maxBase := 63 - len(suffix)
+	if len(name) > maxBase {
+		name = strings.TrimRight(name[:maxBase], "-")
 	}
-	return name
+	return name + suffix
 }
 
 func azureJobState(cg armcontainerinstance.ContainerGroup) (interfaces.JobState, int, string) {
