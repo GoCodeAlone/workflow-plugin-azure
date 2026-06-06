@@ -51,12 +51,20 @@ jobs:
           runner_arch=$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/')
           asset="wfctl-linux-${runner_arch}"
           download_dir="$(mktemp -d)"
+          case "${asset}" in
+            wfctl-linux-amd64) expected_sha="e471470fbf82bcf9bb11de338b727b0c38b426c955f1740e0d6e88eca604436a" ;;
+            wfctl-linux-arm64) expected_sha="bf4525f2769d52336d9634a8d22baa8af3a981ed6be8a4a213c1aa8a4cf2c688" ;;
+            *) echo "::error::unsupported wfctl asset ${asset}"; exit 1 ;;
+          esac
           gh release download "${WFCTL_VERSION}" \
             --repo GoCodeAlone/workflow \
             --pattern "${asset}" \
-            --pattern checksums.txt \
             --dir "${download_dir}"
-          (cd "${download_dir}" && grep "  ${asset}$" checksums.txt | sha256sum -c -)
+          actual_sha="$(sha256sum "${download_dir}/${asset}" | awk '{print $1}')"
+          if [ "${actual_sha}" != "${expected_sha}" ]; then
+            echo "::error::wfctl checksum mismatch for ${asset}: expected ${expected_sha}, got ${actual_sha}"
+            exit 1
+          fi
           mkdir -p "${RUNNER_TEMP}/wfctl-bin"
           install -m 0755 "${download_dir}/${asset}" "${RUNNER_TEMP}/wfctl-bin/wfctl"
           echo "${RUNNER_TEMP}/wfctl-bin" >> "$GITHUB_PATH"
