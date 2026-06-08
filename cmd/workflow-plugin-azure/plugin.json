@@ -7,6 +7,32 @@
   "type": "external",
   "tier": "community",
   "minEngineVersion": "0.73.0",
+  "required_secrets": [
+    {
+      "name": "AZURE_CLIENT_ID",
+      "sensitive": false,
+      "description": "Azure AD app (service principal) client ID for DefaultAzureCredential. Referenced as ${AZURE_CLIENT_ID}.",
+      "prompt": "Azure client ID"
+    },
+    {
+      "name": "AZURE_CLIENT_SECRET",
+      "sensitive": true,
+      "description": "Azure AD app client secret. Referenced as ${AZURE_CLIENT_SECRET}.",
+      "prompt": "Azure client secret"
+    },
+    {
+      "name": "AZURE_TENANT_ID",
+      "sensitive": false,
+      "description": "Azure AD tenant ID. Referenced as ${AZURE_TENANT_ID}.",
+      "prompt": "Azure tenant ID"
+    },
+    {
+      "name": "AZURE_SUBSCRIPTION_ID",
+      "sensitive": false,
+      "description": "Azure subscription ID for IaC operations. Referenced as ${AZURE_SUBSCRIPTION_ID}.",
+      "prompt": "Azure subscription ID"
+    }
+  ],
   "iacServices": [
     "workflow.plugin.external.iac.IaCProviderRequired",
     "workflow.plugin.external.iac.IaCProviderEnumerator",
@@ -67,5 +93,53 @@
     "iacStateBackends": [
       "azure_blob"
     ]
-  }
+  },
+    "secret_targets": [
+      {
+        "provider": "github",
+        "scopes": [
+          "repo",
+          "env",
+          "org"
+        ],
+        "description": "Stored as GitHub Actions secrets when workflows run on GitHub."
+      },
+      {
+        "provider": "gitlab",
+        "scopes": [
+          "project",
+          "group",
+          "env"
+        ],
+        "description": "Stored as GitLab CI/CD variables when workflows run on GitLab."
+      },
+      {
+        "provider": "vault",
+        "scopes": [
+          "mount"
+        ],
+        "description": "Stored in Vault for application/runtime retrieval."
+      },
+      {
+        "provider": "file",
+        "scopes": [
+          "directory"
+        ],
+        "description": "Stored in a local file-backed secret store."
+      },
+      {
+        "provider": "keychain",
+        "scopes": [
+          "service"
+        ],
+        "description": "Stored in the local OS keychain."
+      },
+      {
+        "provider": "env",
+        "scopes": [
+          "process"
+        ],
+        "description": "Provided by the local process environment."
+      }
+    ]
 }
