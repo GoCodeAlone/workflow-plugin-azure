@@ -35,7 +35,14 @@ wfctl plugin install
 
 See `examples/minimal/config.yaml`.
 
-Required env vars: `AZURE_SUBSCRIPTION_ID`, `AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET`.
+Required environment values:
+
+| Variable | Kind | Description |
+|----------|------|-------------|
+| `AZURE_SUBSCRIPTION_ID` | var | Azure subscription ID for IaC operations |
+| `AZURE_TENANT_ID` | var | Azure AD tenant ID |
+| `AZURE_CLIENT_ID` | var | Azure AD app client ID |
+| `AZURE_CLIENT_SECRET` | secret | Azure AD app client secret |
 
 ## Documentation
 
